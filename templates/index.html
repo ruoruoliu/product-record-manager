@@ -1,11 +1,67 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
+<html lang="zh">
+<head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>my local page</title>
-  </head>
-  <body>
-    <h1>hello, {{ name }}</h1>
-  </body>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>衣服加工管理系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <h2 class="mb-4 text-center">横机加工录入</h2>
+
+    <div class="card shadow-sm mb-5">
+        <div class="card-body">
+            <form action="/add" method="POST" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">选择款式</label>
+                    <select name="style_name" class="form-select" required>
+                        {% for s in styles %}
+                        <option value="{{ s.name }}">{{ s.name }} (单件: {{ s.unit_weight }}kg)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">录入件数</label>
+                    <input type="number" name="pieces" class="form-control" placeholder="请输入数量" required>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">保存记录 (自动计算重量)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">今日明细</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>日期</th>
+                        <th>款式</th>
+                        <th>件数</th>
+                        <th>总重量 (kg)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr>
+                        <td>{{ r.date }}</td>
+                        <td><span class="badge bg-info text-dark">{{ r.style_name }}</span></td>
+                        <td>{{ r.pieces }}</td>
+                        <td class="fw-bold text-primary">{{ r.total_weight }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
 </html>

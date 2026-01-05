@@ -4,8 +4,12 @@ version = "0.1.0"
 description = "a simple local web project using flask + sqlite"
 dependencies = [
   "flask",
+  "Flask-SQLAlchemy",
 ]
 
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["app"]
