@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4 text-center">套口加工管理</h2>
+
+<div class="row mb-4">
+    <!-- Styles Management (Top Left) -->
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#collapseStyles" aria-expanded="false">
+                <div class="d-flex align-items-center">
+                    <span class="me-2 text-muted fw-bold rotate-icon">&rsaquo;</span>
+                    <h5 class="mb-0">款式管理</h5>
+                </div>
+                <button type="button" class="btn btn-sm btn-success" onclick="event.stopPropagation(); openAddStyle()">添加款式</button>
+            </div>
+            <div class="collapse" id="collapseStyles">
+                <div class="card-body p-0">
+                    <div style="max-height: 156px; overflow-y: auto;">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th>名称</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for style in styles %}
+                                <tr>
+                                    <td>{{ style.name }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary py-0" 
+                                            onclick="openEditStyle('{{ style.id }}', '{{ style.name }}')">
+                                            修改
+                                        </button>
+                                        <form action="{{ url_for('delete_style', id=style.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除吗？');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0">删除</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Unit Management (Top Right) -->
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#collapseUnits" aria-expanded="false">
+                <div class="d-flex align-items-center">
+                    <span class="me-2 text-muted fw-bold rotate-icon">&rsaquo;</span>
+                    <h5 class="mb-0">加工单位管理</h5>
+                </div>
+                <button type="button" class="btn btn-sm btn-success" onclick="event.stopPropagation(); openAddUnit()">添加单位</button>
+            </div>
+            <div class="collapse" id="collapseUnits">
+                <div class="card-body p-0">
+                    <div style="max-height: 156px; overflow-y: auto;">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th>名称</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for unit in units %}
+                                <tr>
+                                    <td>{{ unit.name }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary py-0" 
+                                            onclick="openEditUnit('{{ unit.id }}', '{{ unit.name }}')">
+                                            修改
+                                        </button>
+                                        <form action="{{ url_for('delete_unit', id=unit.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除吗？');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0">删除</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Record Form -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">新增记录</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('taokou_add') }}" method="POST" class="row g-3 align-items-center">
+            <!-- Hidden inputs to persist filters -->
+            <input type="hidden" name="filter_date_range" value="{{ current_filters.date_range }}">
+            <input type="hidden" name="filter_show_aggregate" value="{{ show_aggregate }}">
+            {% for s in current_filters.style %}
+            <input type="hidden" name="filter_style" value="{{ s }}">
+            {% endfor %}
+            {% for u in current_filters.unit %}
+            <input type="hidden" name="filter_unit" value="{{ u }}">
+            {% endfor %}
+            
+            <div class="col-md-3">
+                <select name="style_name" class="form-select" required>
+                    <option value="" disabled selected>选择款式</option>
+                    {% for s in styles %}
+                    <option value="{{ s.name }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="processing_unit" class="form-select" required>
+                    <option value="" disabled selected>选择单位</option>
+                    {% for u in units %}
+                    <option value="{{ u.name }}">{{ u.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="number" name="pieces" class="form-control" placeholder="录入件数" required>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">添加记录</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- Records Table with Filters -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">加工明细</h5>
+    </div>
+    <div class="card-body border-bottom bg-light">
+        <form action="{{ url_for('taokou_index') }}" method="POST" class="row g-3 align-items-end" id="filterForm">
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <label class="form-label small text-muted mb-1">日期范围</label>
+                    <div class="mb-1">
+                        <a href="javascript:void(0)" onclick="setQuickDate(0)" class="badge bg-light text-secondary text-decoration-none border fw-normal">今天</a>
+                        <a href="javascript:void(0)" onclick="setQuickDate(6)" class="badge bg-light text-secondary text-decoration-none border fw-normal">近7天</a>
+                        <a href="javascript:void(0)" onclick="setQuickDate(29)" class="badge bg-light text-secondary text-decoration-none border fw-normal">近30天</a>
+                    </div>
+                </div>
+                <input type="text" name="date_range" id="dateRange" class="form-control bg-white" placeholder="选择日期范围..." value="{{ current_filters.date_range }}" readonly>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">款式</label>
+                 <select name="style_filter" id="style_filter" class="form-select" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">全部</option>
+                    {% for s in styles %}
+                    <option value="{{ s.name }}" {% if s.name in current_filters.style %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">加工单位</label>
+                <select name="unit_filter" id="unit_filter" class="form-select" onchange="document.getElementById('filterForm').submit()">
+                    <option value="">全部</option>
+                    {% for u in units %}
+                    <option value="{{ u.name }}" {% if u.name in current_filters.unit %}selected{% endif %}>{{ u.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+             <div class="col-md-2 d-flex gap-2 align-items-end">
+                <div class="d-grid w-50">
+                    <a href="{{ url_for('taokou_index') }}" class="btn btn-outline-secondary">重置</a>
+                </div>
+                <div class="d-grid w-50">
+                    <button type="submit" name="action" value="toggle_aggregate" class="btn btn-{{ 'primary' if show_aggregate else 'outline-primary' }}">
+                        {{ '明细' if show_aggregate else '聚合' }}
+                    </button>
+                    <input type="hidden" name="current_show_aggregate" value="{{ show_aggregate }}">
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 25%">日期</th>
+                    <th style="width: 25%">加工单位</th>
+                    <th style="width: 25%">款式</th>
+                    <th style="width: 15%">件数</th>
+                    <th class="text-end" style="width: 10%">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td>{{ r.date }}</td>
+                    <td>{{ r.processing_unit or '-' }}</td>
+                    <td>{{ r.style_name }}</td>
+                    <td>{{ r.pieces }}</td>
+                    {% if not show_aggregate %}
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary py-0 me-1" 
+                            onclick="openEditRecord('{{ r.id }}', '{{ r.date }}', '{{ r.style_name }}', '{{ r.processing_unit }}', '{{ r.pieces }}')">
+                            修改
+                        </button>
+                        <form action="{{ url_for('taokou_delete_record', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除这条记录吗？');">
+                            <!-- Persist filters on delete -->
+                            <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
+                            <input type="hidden" name="show_aggregate" value="{{ show_aggregate }}">
+                            {% for s in current_filters.style %}
+                            <input type="hidden" name="style_filter" value="{{ s }}">
+                            {% endfor %}
+                            {% for u in current_filters.unit %}
+                            <input type="hidden" name="unit_filter" value="{{ u }}">
+                            {% endfor %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-0">删除</button>
+                        </form>
+                    </td>
+                    {% else %}
+                    <td class="text-end"></td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-3">暂无记录</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light fw-bold">
+                <tr>
+                    <td colspan="3" class="text-end border-0">本页汇总:</td>
+                    <td class="border-0">{{ total_pieces }}</td>
+                    <td class="border-0"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- Add Style Modal -->
+<div class="modal fade" id="addStyleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('add_style') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加款式</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">款式名称</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Style Modal -->
+<div class="modal fade" id="editStyleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('edit_style') }}" method="POST">
+                <input type="hidden" name="id" id="edit_style_id">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改款式</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">款式名称</label>
+                        <input type="text" name="name" id="edit_style_name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Record Modal -->
+<div class="modal fade" id="editRecordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('taokou_edit_record') }}" method="POST">
+                <input type="hidden" name="id" id="edit_record_id">
+                <input type="hidden" name="filter_date_range" value="{{ current_filters.date_range }}">
+                <input type="hidden" name="filter_show_aggregate" value="{{ show_aggregate }}">
+                {% for s in current_filters.style %}
+                <input type="hidden" name="filter_style" value="{{ s }}">
+                {% endfor %}
+                {% for u in current_filters.unit %}
+                <input type="hidden" name="filter_unit" value="{{ u }}">
+                {% endfor %}
+                
+                <div class="modal-header">
+                    <h5 class="modal-title">修改记录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">日期</label>
+                         <!-- Use flatpickr for single date edit -->
+                        <input type="text" name="date" id="edit_record_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">加工单位</label>
+                        <select name="processing_unit" id="edit_record_unit" class="form-select" required>
+                            {% for u in units %}
+                            <option value="{{ u.name }}">{{ u.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">款式</label>
+                        <select name="style_name" id="edit_record_style" class="form-select" required>
+                            {% for s in styles %}
+                            <option value="{{ s.name }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">件数</label>
+                        <input type="number" name="pieces" id="edit_record_pieces" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Unit Modal -->
+<div class="modal fade" id="addUnitModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('add_unit') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加加工单位</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">单位名称</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Unit Modal -->
+<div class="modal fade" id="editUnitModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('edit_unit') }}" method="POST">
+                <input type="hidden" name="id" id="edit_unit_id">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改加工单位</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">单位名称</label>
+                        <input type="text" name="name" id="edit_unit_name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function setQuickDate(daysAgo) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - daysAgo);
+        
+        const el = document.querySelector("#dateRange");
+        if (el && el._flatpickr) {
+            el._flatpickr.setDate([start, end], true);
+            document.getElementById('filterForm').submit();
+        }
+    }
+
+    // Helper to get or create BS5 modal instance
+    function getModal(id) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        // Try to get existing instance
+        var modal = bootstrap.Modal.getInstance(el);
+        // If not exists, create new one
+        if (!modal) {
+            modal = new bootstrap.Modal(el);
+        }
+        return modal;
+    }
+
+    function openAddStyle() {
+        var modal = getModal('addStyleModal');
+        if (modal) modal.show();
+    }
+
+    function openAddUnit() {
+        var modal = getModal('addUnitModal');
+        if (modal) modal.show();
+    }
+
+    function openEditStyle(id, name) {
+        document.getElementById('edit_style_id').value = id;
+        document.getElementById('edit_style_name').value = name;
+        // No weight handling
+        
+        var modal = getModal('editStyleModal');
+        if (modal) modal.show();
+    }
+
+    function openEditUnit(id, name) {
+        document.getElementById('edit_unit_id').value = id;
+        document.getElementById('edit_unit_name').value = name;
+        
+        var modal = getModal('editUnitModal');
+        if (modal) modal.show();
+    }
+    
+    function openEditRecord(id, date, style_name, unit_name, pieces) {
+        document.getElementById('edit_record_id').value = id;
+        document.getElementById('edit_record_date').value = date;
+        document.getElementById('edit_record_unit').value = unit_name;
+        document.getElementById('edit_record_style').value = style_name;
+        document.getElementById('edit_record_pieces').value = pieces;
+        
+        // Initialize flatpickr for modal date input if needed
+        flatpickr("#edit_record_date", {
+            dateFormat: "Y-m-d",
+            allowInput: true,
+             locale: "zh"
+        });
+
+        var modal = getModal('editRecordModal');
+        if (modal) modal.show();
+    }
+
+    // Debug: Check if bootstrap is loaded correctly
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap 5 object is not available. Please check if bootstrap.bundle.min.js is correctly loaded and is version 5.');
+        } else {
+            console.log('Bootstrap 5 loaded successfully.');
+        }
+
+        // Initialize Flatpickr
+        flatpickr("#dateRange", {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "Y年m月d日",
+            showMonths: 2,
+            locale: "zh",
+            defaultDate: "{{ current_filters.date_range }}" || null,
+            onClose: function(selectedDates, dateStr, instance) {
+                // Submit only if date string has changed to avoid unnecessary reloads
+                if (dateStr !== "{{ current_filters.date_range }}") {
+                    document.getElementById('filterForm').submit();
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

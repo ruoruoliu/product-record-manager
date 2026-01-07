@@ -30,6 +30,14 @@ class HengjiRecord(db.Model):
     pieces = db.Column(db.Integer)
     total_weight = db.Column(db.Float) # compute by unit_weight * pieces 
 
+# define taokou record table
+class TaokouRecord(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String(20))
+    style_name = db.Column(db.String(50))
+    processing_unit = db.Column(db.String(50))
+    pieces = db.Column(db.Integer)
+
 # init database and migrations
 with app.app_context():
     db.create_all()
@@ -203,14 +211,25 @@ def add_style():
     name = request.form.get('name')
     unit_weight = request.form.get('unit_weight')
     
+    # Handle optional unit_weight (default to 0.0)
+    if not unit_weight:
+        weight_val = 0.0
+    else:
+        try:
+            weight_val = float(unit_weight)
+        except ValueError:
+            weight_val = 0.0
+
     if Style.query.filter_by(name=name).first():
         flash('该款式已存在', 'danger')
     else:
-        new_style = Style(name=name, unit_weight=float(unit_weight))
+        new_style = Style(name=name, unit_weight=weight_val)
         db.session.add(new_style)
         db.session.commit()
         flash('款式添加成功', 'success')
-    return redirect(url_for('index'))
+        
+    # Redirect back to the referrer page
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/style/edit', methods=['POST'])
 def edit_style():
@@ -221,12 +240,17 @@ def edit_style():
     style = Style.query.get(style_id)
     if style:
         style.name = name
-        style.unit_weight = float(unit_weight)
+        # Only update weight if provided
+        if unit_weight is not None:
+             try:
+                style.unit_weight = float(unit_weight)
+             except ValueError:
+                pass # keep original if invalid? or set to 0?
         db.session.commit()
         flash('款式修改成功', 'success')
     else:
         flash('款式不存在', 'danger')
-    return redirect(url_for('index'))
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/style/delete/<int:id>', methods=['POST'])
 def delete_style(id):
@@ -237,7 +261,7 @@ def delete_style(id):
         flash('款式删除成功', 'success')
     else:
         flash('款式不存在', 'danger')
-    return redirect(url_for('index'))
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/unit/add', methods=['POST'])
 def add_unit():
@@ -249,7 +273,7 @@ def add_unit():
         db.session.add(new_unit)
         db.session.commit()
         flash('加工单位添加成功', 'success')
-    return redirect(url_for('index'))
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/unit/edit', methods=['POST'])
 def edit_unit():
@@ -263,7 +287,7 @@ def edit_unit():
         flash('加工单位修改成功', 'success')
     else:
         flash('加工单位不存在', 'danger')
-    return redirect(url_for('index'))
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/unit/delete/<int:id>', methods=['POST'])
 def delete_unit(id):
@@ -274,6 +298,7 @@ def delete_unit(id):
         flash('加工单位删除成功', 'success')
     else:
         flash('加工单位不存在', 'danger')
+    return redirect(request.referrer or url_for('index'))
     return redirect(url_for('index'))
 
 @app.route('/record/delete/<int:id>', methods=['POST'])
@@ -329,6 +354,154 @@ def edit_record():
     else:
         flash('记录不存在', 'danger')
     return redirect(url_for('index'))
+
+@app.route('/taokou', methods=['GET', 'POST'])
+def taokou_index():
+    if request.method == 'POST':
+        session['taokou_date_range'] = request.form.get('date_range', '')
+        session['taokou_unit_filter'] = request.form.getlist('unit_filter')
+        session['taokou_style_filter'] = request.form.getlist('style_filter')
+        
+        action = request.form.get('action')
+        if action == 'toggle_aggregate':
+             session['taokou_show_aggregate'] = not (request.form.get('current_show_aggregate') == 'True')
+        else:
+             session['taokou_show_aggregate'] = request.form.get('current_show_aggregate') == 'True'
+
+        return redirect(url_for('taokou_index'))
+    
+    date_range = session.pop('taokou_date_range', '')
+    unit_filters = session.pop('taokou_unit_filter', [])
+    style_filters = session.pop('taokou_style_filter', [])
+    show_aggregate = session.pop('taokou_show_aggregate', False)
+    
+    query = TaokouRecord.query
+    
+    if unit_filters and '' not in unit_filters:
+         query = query.filter(TaokouRecord.processing_unit.in_(unit_filters))
+        
+    if style_filters and '' not in style_filters:
+         query = query.filter(TaokouRecord.style_name.in_(style_filters))
+    
+    if date_range:
+        if " to " in date_range:
+            start_date, end_date = date_range.split(" to ")
+            query = query.filter(TaokouRecord.date >= start_date)
+            query = query.filter(TaokouRecord.date <= end_date)
+        elif " 至 " in date_range:
+            start_date, end_date = date_range.split(" 至 ")
+            query = query.filter(TaokouRecord.date >= start_date)
+            query = query.filter(TaokouRecord.date <= end_date)
+        else:
+            query = query.filter(TaokouRecord.date == date_range)
+    
+    if show_aggregate:
+        records = query.with_entities(
+            TaokouRecord.date,
+            TaokouRecord.processing_unit,
+            TaokouRecord.style_name,
+            func.sum(TaokouRecord.pieces).label('pieces')
+        ).group_by(
+            TaokouRecord.date,
+            TaokouRecord.processing_unit,
+            TaokouRecord.style_name
+        ).order_by(TaokouRecord.date.desc()).all()
+    else:
+        records = query.order_by(TaokouRecord.id.desc()).all()
+    
+    total_pieces = sum(r.pieces for r in records)
+    
+    styles = Style.query.order_by(Style.name).all()
+    units = ProcessingUnit.query.order_by(ProcessingUnit.name).all()
+    
+    return render_template("taokou.html", 
+        styles=styles, 
+        units=units,
+        records=records, 
+        total_pieces=total_pieces,
+        show_aggregate=show_aggregate,
+        current_filters={
+            'date_range': date_range,
+            'unit': unit_filters,
+            'style': style_filters
+        }
+    )
+
+@app.route('/taokou/add', methods=['POST'])
+def taokou_add():
+    session['taokou_date_range'] = request.form.get('filter_date_range', '')
+    session['taokou_style_filter'] = request.form.getlist('filter_style')
+    session['taokou_unit_filter'] = request.form.getlist('filter_unit')
+    session['taokou_show_aggregate'] = request.form.get('filter_show_aggregate') == 'True'
+    
+    style_name = request.form.get('style_name')
+    processing_unit = request.form.get('processing_unit')
+    try:
+        pieces = int(request.form.get('pieces'))
+    except ValueError:
+        flash('件数必须是整数', 'danger')
+        return redirect(url_for('taokou_index'))
+
+    style = Style.query.filter_by(name=style_name).first()
+    if not style:
+        flash('款式不存在', 'danger')
+        return redirect(url_for('taokou_index'))
+
+    new_rec = TaokouRecord(
+        date = datetime.now().strftime('%Y-%m-%d'),
+        style_name = style_name,
+        processing_unit = processing_unit,
+        pieces = pieces
+    )
+    db.session.add(new_rec)
+    db.session.commit()
+    flash('添加成功', 'success')
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/delete_record/<int:id>', methods=['POST'])
+def taokou_delete_record(id):
+    session['taokou_date_range'] = request.form.get('date_range', '')
+    session['taokou_style_filter'] = request.form.getlist('style_filter')
+    session['taokou_unit_filter'] = request.form.getlist('unit_filter')
+    session['taokou_show_aggregate'] = request.form.get('show_aggregate') == 'True'
+
+    record = TaokouRecord.query.get(id)
+    if record:
+        db.session.delete(record)
+        db.session.commit()
+        flash('记录删除成功', 'success')
+    else:
+        flash('记录不存在', 'danger')
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/edit_record', methods=['POST'])
+def taokou_edit_record():
+    session['taokou_date_range'] = request.form.get('filter_date_range', '')
+    session['taokou_style_filter'] = request.form.getlist('filter_style')
+    session['taokou_unit_filter'] = request.form.getlist('filter_unit')
+    session['taokou_show_aggregate'] = request.form.get('filter_show_aggregate') == 'True'
+
+    record_id = request.form.get('id')
+    date = request.form.get('date')
+    style_name = request.form.get('style_name')
+    processing_unit = request.form.get('processing_unit')
+    try:
+        pieces = int(request.form.get('pieces'))
+    except ValueError:
+        flash('件数必须是整数', 'danger')
+        return redirect(url_for('taokou_index'))
+
+    record = TaokouRecord.query.get(record_id)
+    if record:
+        record.date = date
+        record.style_name = style_name
+        record.processing_unit = processing_unit
+        record.pieces = pieces
+        db.session.commit()
+        flash('记录修改成功', 'success')
+    else:
+        flash('记录不存在', 'danger')
+    return redirect(url_for('taokou_index'))
 
 if __name__ == '__main__':
     print("local server running on: http://127.0.0.1:5000")
