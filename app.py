@@ -299,7 +299,6 @@ def delete_unit(id):
     else:
         flash('加工单位不存在', 'danger')
     return redirect(request.referrer or url_for('index'))
-    return redirect(url_for('index'))
 
 @app.route('/record/delete/<int:id>', methods=['POST'])
 def delete_record(id):

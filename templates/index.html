@@ -56,6 +56,11 @@
         .cursor-pointer {
             cursor: pointer;
         }
+        /* Fix for flatpickr input jitter usually caused by box-sizing issues or missing styles on the alt input */
+        .flatpickr-input {
+            box-sizing: border-box; 
+            min-height: calc(1.5em + .75rem + 2px); /* Standard Bootstrap form-control height */
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -96,6 +101,7 @@
 
 <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 <!-- Flatpickr JS -->
+<script src="{{ url_for('static', filename='js/flatpickr.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/zh.js') }}"></script>
 
 <script>
