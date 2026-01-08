@@ -150,7 +150,7 @@ def index():
     styles = Style.query.order_by(Style.name).all()
     units = ProcessingUnit.query.order_by(ProcessingUnit.name).all()
     
-    return render_template("index.html", 
+    return render_template("hengji.html", 
         styles=styles, 
         units=units,
         records=records, 

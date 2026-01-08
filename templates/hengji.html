@@ -1,7 +1,7 @@
 {% extends "index.html" %}
 
 {% block content %}
-<h2 class="mb-4 text-center">套口加工管理</h2>
+<h2 class="mb-4 text-center">横机加工管理</h2>
 
 <div class="row mb-4">
     <!-- Styles Management (Top Left) -->
@@ -21,6 +21,7 @@
                             <thead class="table-light sticky-top" style="z-index: 1;">
                                 <tr>
                                     <th>名称</th>
+                                    <th>单重 (kg)</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -28,9 +29,10 @@
                                 {% for style in styles %}
                                 <tr>
                                     <td>{{ style.name }}</td>
+                                    <td>{{ style.unit_weight }}</td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-primary py-0" 
-                                            onclick="openEditStyle('{{ style.id }}', '{{ style.name }}')">
+                                            onclick="openEditStyle('{{ style.id }}', '{{ style.name }}', '{{ style.unit_weight }}')">
                                             修改
                                         </button>
                                         <form action="{{ url_for('delete_style', id=style.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除吗？');">
@@ -97,7 +99,7 @@
         <h5 class="mb-0">新增记录</h5>
     </div>
     <div class="card-body">
-        <form action="{{ url_for('taokou_add') }}" method="POST" class="row g-3 align-items-center">
+        <form action="{{ url_for('add') }}" method="POST" class="row g-3 align-items-center">
             <!-- Hidden inputs to persist filters -->
             <input type="hidden" name="filter_date_range" value="{{ current_filters.date_range }}">
             <input type="hidden" name="filter_show_aggregate" value="{{ show_aggregate }}">
@@ -112,7 +114,7 @@
                 <select name="style_name" class="form-select" required>
                     <option value="" disabled selected>选择款式</option>
                     {% for s in styles %}
-                    <option value="{{ s.name }}">{{ s.name }}</option>
+                    <option value="{{ s.name }}">{{ s.name }} (单重: {{ s.unit_weight }})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -141,7 +143,7 @@
         <h5 class="mb-0">加工明细</h5>
     </div>
     <div class="card-body border-bottom bg-light">
-        <form action="{{ url_for('taokou_index') }}" method="POST" class="row g-3 align-items-end" id="filterForm">
+        <form action="{{ url_for('index') }}" method="POST" class="row g-3 align-items-end" id="filterForm">
             <div class="col-md-4">
                 <div class="d-flex justify-content-between align-items-center">
                     <label class="form-label small text-muted mb-1">日期范围</label>
@@ -173,7 +175,7 @@
             </div>
              <div class="col-md-2 d-flex gap-2 align-items-end">
                 <div class="d-grid w-50">
-                    <a href="{{ url_for('taokou_index') }}" class="btn btn-outline-secondary">重置</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">重置</a>
                 </div>
                 <div class="d-grid w-50">
                     <button type="submit" name="action" value="toggle_aggregate" class="btn btn-{{ 'primary' if show_aggregate else 'outline-primary' }}">
@@ -188,10 +190,11 @@
         <table class="table table-hover mb-0">
             <thead class="table-light">
                 <tr>
-                    <th style="width: 25%">日期</th>
+                    <th style="width: 15%">日期</th>
                     <th style="width: 25%">加工单位</th>
                     <th style="width: 25%">款式</th>
                     <th style="width: 15%">件数</th>
+                    <th style="width: 10%">重量 (kg)</th>
                     <th class="text-end" style="width: 10%">操作</th>
                 </tr>
             </thead>
@@ -202,13 +205,14 @@
                     <td>{{ r.processing_unit or '-' }}</td>
                     <td>{{ r.style_name }}</td>
                     <td>{{ r.pieces }}</td>
+                    <td class="fw-bold">{{ r.total_weight }}</td>
                     {% if not show_aggregate %}
                     <td class="text-end">
                         <button class="btn btn-sm btn-outline-primary py-0 me-1" 
                             onclick="openEditRecord('{{ r.id }}', '{{ r.date }}', '{{ r.style_name }}', '{{ r.processing_unit }}', '{{ r.pieces }}')">
                             修改
                         </button>
-                        <form action="{{ url_for('taokou_delete_record', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除这条记录吗？');">
+                        <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除这条记录吗？');">
                             <!-- Persist filters on delete -->
                             <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
                             <input type="hidden" name="show_aggregate" value="{{ show_aggregate }}">
@@ -227,7 +231,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-3">暂无记录</td>
+                    <td colspan="6" class="text-center text-muted py-3">暂无记录</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -235,6 +239,7 @@
                 <tr>
                     <td colspan="3" class="text-end border-0">本页汇总:</td>
                     <td class="border-0">{{ total_pieces }}</td>
+                    <td class="border-0">{{ total_weight }}</td>
                     <td class="border-0"></td>
                 </tr>
             </tfoot>
@@ -255,6 +260,10 @@
                     <div class="mb-3">
                         <label class="form-label">款式名称</label>
                         <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">单位重量 (kg)</label>
+                        <input type="number" step="0.001" name="unit_weight" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -281,6 +290,10 @@
                         <label class="form-label">款式名称</label>
                         <input type="text" name="name" id="edit_style_name" class="form-control" required>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">单位重量 (kg)</label>
+                        <input type="number" step="0.001" name="unit_weight" id="edit_style_weight" class="form-control" required>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -295,7 +308,7 @@
 <div class="modal fade" id="editRecordModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('taokou_edit_record') }}" method="POST">
+            <form action="{{ url_for('edit_record') }}" method="POST">
                 <input type="hidden" name="id" id="edit_record_id">
                 <input type="hidden" name="filter_date_range" value="{{ current_filters.date_range }}">
                 <input type="hidden" name="filter_show_aggregate" value="{{ show_aggregate }}">
@@ -433,10 +446,10 @@
         if (modal) modal.show();
     }
 
-    function openEditStyle(id, name) {
+    function openEditStyle(id, name, weight) {
         document.getElementById('edit_style_id').value = id;
         document.getElementById('edit_style_name').value = name;
-        // No weight handling
+        document.getElementById('edit_style_weight').value = weight;
         
         var modal = getModal('editStyleModal');
         if (modal) modal.show();
