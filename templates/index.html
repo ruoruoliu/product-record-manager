@@ -115,6 +115,20 @@
         toastList.forEach(function(toast) {
             toast.show();
         });
+
+        // --- Heartbeat Logic ---
+        // Send a heartbeat to the server every 2 seconds.
+        // If the server doesn't receive a heartbeat for 5 seconds, it will shut down.
+        function sendHeartbeat() {
+            fetch('/heartbeat', { method: 'POST', keepalive: true }).catch(err => {
+                // Ignore errors (server might be down or shutting down)
+            });
+        }
+        
+        // Start sending heartbeats immediately
+        setInterval(sendHeartbeat, 2000);
+        sendHeartbeat(); // First ping
+        // -----------------------
     });
 </script>
 

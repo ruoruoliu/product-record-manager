@@ -3,10 +3,33 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text, inspect, func
 from datetime import datetime, timedelta
 import os
+import sys
 
-app = Flask(__name__)
+# Determine if running in a frozen state (PyInstaller exe) or normal script
+if getattr(sys, 'frozen', False):
+    # If the application is run as a bundle, the PyInstaller bootloader
+    # extends the sys module by a flag frozen=True and sets the app 
+    # path into variable _MEIPASS'.
+    # We use this path to locate static and template resources inside the exe.
+    base_dir = sys._MEIPASS
+    template_folder = os.path.join(base_dir, 'templates')
+    static_folder = os.path.join(base_dir, 'static')
+    # The database should be created in the same folder as the exe file,
+    # not inside the temporary _MEIPASS folder.
+    application_path = os.path.dirname(sys.executable)
+else:
+    # Normal development environment
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    template_folder = 'templates'
+    static_folder = 'static'
+    application_path = base_dir
+
+app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
+
 # database stored in factory.db
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///factory.db'
+# Use absolute path to ensure DB is created next to the executable/script
+db_path = os.path.join(application_path, 'factory.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Increase SQLite timeout to reduce locking issues (default is 5s)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'timeout': 15}}
@@ -590,5 +613,63 @@ def taokou_delete_unit(id):
     return redirect(url_for('taokou_index'))
 
 if __name__ == '__main__':
-    print("local server running on: http://127.0.0.1:5000")
-    app.run(debug=True)
+    import webbrowser
+    import socket
+    from threading import Timer, Thread
+    import time
+    
+    # Check execution mode
+    # 1. PyInstaller sets 'frozen'
+    # 2. Our portable script passes '--production'
+    is_production = getattr(sys, 'frozen', False) or '--production' in sys.argv
+
+    # --- Single Instance Check ---
+    # Try to connect to the port. If successful, the server is already running.
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    is_already_running = sock.connect_ex(('127.0.0.1', 5000)) == 0
+    sock.close()
+
+    def open_browser():
+        webbrowser.open_new('http://127.0.0.1:5000')
+
+    if is_already_running:
+        print("Application is already running. Opening browser...")
+        open_browser()
+        # Exit this duplicate instance
+        sys.exit(0)
+    # -----------------------------
+
+    # --- Auto-Shutdown Logic (Only for Production) ---
+    if is_production:
+        last_heartbeat = time.time()
+        SHUTDOWN_TIMEOUT = 5 
+
+        def heartbeat_monitor():
+            global last_heartbeat
+            time.sleep(15) # Grace period
+            while True:
+                if time.time() - last_heartbeat > SHUTDOWN_TIMEOUT:
+                    print(f"No heartbeat for {SHUTDOWN_TIMEOUT}s. Shutting down...")
+                    os._exit(0)
+                time.sleep(1)
+
+        monitor_thread = Thread(target=heartbeat_monitor, daemon=True)
+        monitor_thread.start()
+
+        @app.route('/heartbeat', methods=['POST'])
+        def handle_heartbeat():
+            global last_heartbeat
+            last_heartbeat = time.time()
+            return "OK"
+
+    print("Starting server...")
+    if is_production:
+        # If running in production (exe or portable):
+        # 1. Open browser automatically (since we are the first instance)
+        # 2. Disable debug mode
+        Timer(1.5, open_browser).start()
+        app.run(debug=False, port=5000)
+    else:
+        # Development mode
+        print("Running in development mode on: http://127.0.0.1:5000")
+        app.run(debug=True, port=5000)
