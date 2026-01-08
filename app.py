@@ -8,16 +8,19 @@ app = Flask(__name__)
 # database stored in factory.db
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///factory.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Increase SQLite timeout to reduce locking issues (default is 5s)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'timeout': 15}}
 app.secret_key = 'dev_secret_key_change_this_production_random_string'
 db = SQLAlchemy(app)
 
-# define product detail table
-class Style(db.Model):
+# define hengji style table
+class HengjiStyle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     unit_weight = db.Column(db.Float, nullable=False)
 
-class ProcessingUnit(db.Model):
+# define hengji processing unit table
+class HengjiProcessingUnit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
 
@@ -38,42 +41,54 @@ class TaokouRecord(db.Model):
     processing_unit = db.Column(db.String(50))
     pieces = db.Column(db.Integer)
 
+# define taokou style table
+class TaokouStyle(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+
+# define taokou processing unit table
+class TaokouProcessingUnit(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+
 # init database and migrations
 with app.app_context():
     db.create_all()
     
     # Init default styles if empty
-    if not Style.query.first():
+    if not HengjiStyle.query.first():
         db.session.add_all([
-            Style(name="0528", unit_weight=0.365),
-            Style(name="0529", unit_weight=0.730),
-            Style(name="0530", unit_weight=0.630),
+            HengjiStyle(name="0528", unit_weight=0.365),
+            HengjiStyle(name="0529", unit_weight=0.730),
+            HengjiStyle(name="0530", unit_weight=0.630),
         ])
         db.session.commit()
     
     # Init default processing units if empty
-    if not ProcessingUnit.query.first():
+    if not HengjiProcessingUnit.query.first():
         db.session.add_all([
-            ProcessingUnit(name="张三"),
-            ProcessingUnit(name="李四"),
-            ProcessingUnit(name="王五"),
+            HengjiProcessingUnit(name="张三"),
+            HengjiProcessingUnit(name="李四"),
+            HengjiProcessingUnit(name="王五"),
         ])
         db.session.commit()
     
-    # Simple migration for adding processing_unit column if it doesn't exist
-    try:
-        inspector = inspect(db.engine)
-        columns = [c['name'] for c in inspector.get_columns('hengji_record')]
-        if 'processing_unit' not in columns:
-            print("Migrating: Adding processing_unit column to hengji_record table")
-            with db.engine.connect() as conn:
-                conn.execute(text("ALTER TABLE hengji_record ADD COLUMN processing_unit VARCHAR(50)"))
-                conn.commit()
-    except Exception as e:
-        print(f"Migration warning: {e}")
+    # Init default taokou styles if empty - Copy from HengjiStyle
+    if not TaokouStyle.query.first():
+        for s in HengjiStyle.query.all():
+             if not TaokouStyle.query.filter_by(name=s.name).first():
+                 db.session.add(TaokouStyle(name=s.name))
+        db.session.commit()
 
+    # Init default taokou units if empty - Copy from HengjiProcessingUnit
+    if not TaokouProcessingUnit.query.first():
+        for u in HengjiProcessingUnit.query.all():
+             if not TaokouProcessingUnit.query.filter_by(name=u.name).first():
+                 db.session.add(TaokouProcessingUnit(name=u.name))
+        db.session.commit()
+    
 @app.route('/', methods=['GET', 'POST'])
-def index():
+def hengji_index():
     if request.method == 'POST':
         # Store filters in session and Redirect to GET
         session['date_range'] = request.form.get('date_range', '')
@@ -86,7 +101,7 @@ def index():
         else:
              session['show_aggregate'] = request.form.get('current_show_aggregate') == 'True'
 
-        return redirect(url_for('index'))
+        return redirect(url_for('hengji_index'))
     
     # GET request: Consume session filters (Flash pattern)
     # Pop them so they don't persist on next refresh
@@ -103,18 +118,14 @@ def index():
     
     # Apply filters (Multi-select support)
     if unit_filters and '' not in unit_filters:
-         query = query.filter(HengjiRecord.processing_unit.in_(unit_filters))
+        query = query.filter(HengjiRecord.processing_unit.in_(unit_filters))
         
     if style_filters and '' not in style_filters:
-         query = query.filter(HengjiRecord.style_name.in_(style_filters))
+        query = query.filter(HengjiRecord.style_name.in_(style_filters))
     
     # Date Range logic
     if date_range:
-        if " to " in date_range:
-            start_date, end_date = date_range.split(" to ")
-            query = query.filter(HengjiRecord.date >= start_date)
-            query = query.filter(HengjiRecord.date <= end_date)
-        elif " 至 " in date_range:
+        if " 至 " in date_range:
             start_date, end_date = date_range.split(" 至 ")
             query = query.filter(HengjiRecord.date >= start_date)
             query = query.filter(HengjiRecord.date <= end_date)
@@ -147,8 +158,8 @@ def index():
     total_weight = sum(r.total_weight for r in records)
     total_pieces = sum(r.pieces for r in records)
     
-    styles = Style.query.order_by(Style.name).all()
-    units = ProcessingUnit.query.order_by(ProcessingUnit.name).all()
+    styles = HengjiStyle.query.order_by(HengjiStyle.name).all()
+    units = HengjiProcessingUnit.query.order_by(HengjiProcessingUnit.name).all()
     
     return render_template("hengji.html", 
         styles=styles, 
@@ -164,8 +175,8 @@ def index():
         }
     )
 
-@app.route('/add', methods=['POST'])
-def add():
+@app.route('/hengji/add', methods=['POST'])
+def hengji_add():
     # Capture filters to persist them
     session['date_range'] = request.form.get('filter_date_range', '')
     session['style_filter'] = request.form.getlist('filter_style')
@@ -178,12 +189,12 @@ def add():
         pieces = int(request.form.get('pieces'))
     except ValueError:
         flash('件数必须是整数', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('hengji_index'))
 
-    style = Style.query.filter_by(name=style_name).first()
+    style = HengjiStyle.query.filter_by(name=style_name).first()
     if not style:
         flash('款式不存在', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('hengji_index'))
         
     total_weight = pieces * style.unit_weight
 
@@ -197,17 +208,17 @@ def add():
     db.session.add(new_rec)
     db.session.commit()
     flash('添加成功', 'success')
-    return redirect(url_for('index'))
+    return redirect(url_for('hengji_index'))
 
 
 @app.route('/basic_info')
 def basic_info():
-    styles = Style.query.order_by(Style.name).all()
-    units = ProcessingUnit.query.order_by(ProcessingUnit.name).all()
+    styles = HengjiStyle.query.order_by(HengjiStyle.name).all()
+    units = HengjiProcessingUnit.query.order_by(HengjiProcessingUnit.name).all()
     return render_template('basic_info.html', styles=styles, units=units)
 
-@app.route('/style/add', methods=['POST'])
-def add_style():
+@app.route('/hengji/style/add', methods=['POST'])
+def hengji_add_style():
     name = request.form.get('name')
     unit_weight = request.form.get('unit_weight')
     
@@ -220,24 +231,24 @@ def add_style():
         except ValueError:
             weight_val = 0.0
 
-    if Style.query.filter_by(name=name).first():
+    if HengjiStyle.query.filter_by(name=name).first():
         flash('该款式已存在', 'danger')
     else:
-        new_style = Style(name=name, unit_weight=weight_val)
+        new_style = HengjiStyle(name=name, unit_weight=weight_val)
         db.session.add(new_style)
         db.session.commit()
         flash('款式添加成功', 'success')
         
     # Redirect back to the referrer page
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('hengji_index'))
 
-@app.route('/style/edit', methods=['POST'])
-def edit_style():
+@app.route('/hengji/style/edit', methods=['POST'])
+def hengji_edit_style():
     style_id = request.form.get('id')
     name = request.form.get('name')
     unit_weight = request.form.get('unit_weight')
     
-    style = Style.query.get(style_id)
+    style = HengjiStyle.query.get(style_id)
     if style:
         style.name = name
         # Only update weight if provided
@@ -250,58 +261,58 @@ def edit_style():
         flash('款式修改成功', 'success')
     else:
         flash('款式不存在', 'danger')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('hengji_index'))
 
-@app.route('/style/delete/<int:id>', methods=['POST'])
-def delete_style(id):
-    style = Style.query.get(id)
+@app.route('/hengji/style/delete/<int:id>', methods=['POST'])
+def hengji_delete_style(id):
+    style = HengjiStyle.query.get(id)
     if style:
         db.session.delete(style)
         db.session.commit()
         flash('款式删除成功', 'success')
     else:
         flash('款式不存在', 'danger')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('hengji_index'))
 
-@app.route('/unit/add', methods=['POST'])
-def add_unit():
+@app.route('/hengji/unit/add', methods=['POST'])
+def hengji_add_unit():
     name = request.form.get('name')
-    if ProcessingUnit.query.filter_by(name=name).first():
+    if HengjiProcessingUnit.query.filter_by(name=name).first():
         flash('该加工单位已存在', 'danger')
     else:
-        new_unit = ProcessingUnit(name=name)
+        new_unit = HengjiProcessingUnit(name=name)
         db.session.add(new_unit)
         db.session.commit()
         flash('加工单位添加成功', 'success')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('hengji_index'))
 
-@app.route('/unit/edit', methods=['POST'])
-def edit_unit():
+@app.route('/hengji/unit/edit', methods=['POST'])
+def hengji_edit_unit():
     unit_id = request.form.get('id')
     name = request.form.get('name')
     
-    unit = ProcessingUnit.query.get(unit_id)
+    unit = HengjiProcessingUnit.query.get(unit_id)
     if unit:
         unit.name = name
         db.session.commit()
         flash('加工单位修改成功', 'success')
     else:
         flash('加工单位不存在', 'danger')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('hengji_index'))
 
-@app.route('/unit/delete/<int:id>', methods=['POST'])
-def delete_unit(id):
-    unit = ProcessingUnit.query.get(id)
+@app.route('/hengji/unit/delete/<int:id>', methods=['POST'])
+def hengji_delete_unit(id):
+    unit = HengjiProcessingUnit.query.get(id)
     if unit:
         db.session.delete(unit)
         db.session.commit()
         flash('加工单位删除成功', 'success')
     else:
         flash('加工单位不存在', 'danger')
-    return redirect(request.referrer or url_for('index'))
+    return redirect(request.referrer or url_for('hengji_index'))
 
-@app.route('/record/delete/<int:id>', methods=['POST'])
-def delete_record(id):
+@app.route('/hengji/record/delete/<int:id>', methods=['POST'])
+def hengji_delete_record(id):
     # Retrieve filters to persist context
     session['date_range'] = request.form.get('date_range', '')
     session['style_filter'] = request.form.getlist('style_filter')
@@ -315,10 +326,10 @@ def delete_record(id):
         flash('记录删除成功', 'success')
     else:
         flash('记录不存在', 'danger')
-    return redirect(url_for('index'))
+    return redirect(url_for('hengji_index'))
 
-@app.route('/record/edit', methods=['POST'])
-def edit_record():
+@app.route('/hengji/record/edit', methods=['POST'])
+def hengji_edit_record():
     # Retrieve filters
     session['date_range'] = request.form.get('filter_date_range', '')
     session['style_filter'] = request.form.getlist('filter_style')
@@ -333,14 +344,14 @@ def edit_record():
         pieces = int(request.form.get('pieces'))
     except ValueError:
         flash('件数必须是整数', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('hengji_index'))
 
     record = HengjiRecord.query.get(record_id)
     if record:
-        style = Style.query.filter_by(name=style_name).first()
+        style = HengjiStyle.query.filter_by(name=style_name).first()
         if not style:
              flash('款式不存在', 'danger') 
-             return redirect(url_for('index'))
+             return redirect(url_for('hengji_index'))
         
         record.date = date
         record.style_name = style_name
@@ -352,7 +363,7 @@ def edit_record():
         flash('记录修改成功', 'success')
     else:
         flash('记录不存在', 'danger')
-    return redirect(url_for('index'))
+    return redirect(url_for('hengji_index'))
 
 @app.route('/taokou', methods=['GET', 'POST'])
 def taokou_index():
@@ -410,8 +421,8 @@ def taokou_index():
     
     total_pieces = sum(r.pieces for r in records)
     
-    styles = Style.query.order_by(Style.name).all()
-    units = ProcessingUnit.query.order_by(ProcessingUnit.name).all()
+    styles = TaokouStyle.query.order_by(TaokouStyle.name).all()
+    units = TaokouProcessingUnit.query.order_by(TaokouProcessingUnit.name).all()
     
     return render_template("taokou.html", 
         styles=styles, 
@@ -441,7 +452,7 @@ def taokou_add():
         flash('件数必须是整数', 'danger')
         return redirect(url_for('taokou_index'))
 
-    style = Style.query.filter_by(name=style_name).first()
+    style = TaokouStyle.query.filter_by(name=style_name).first()
     if not style:
         flash('款式不存在', 'danger')
         return redirect(url_for('taokou_index'))
@@ -500,6 +511,82 @@ def taokou_edit_record():
         flash('记录修改成功', 'success')
     else:
         flash('记录不存在', 'danger')
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/style/add', methods=['POST'])
+def taokou_add_style():
+    name = request.form.get('name')
+    
+    if TaokouStyle.query.filter_by(name=name).first():
+        flash('该款式已存在', 'danger')
+    else:
+        new_style = TaokouStyle(name=name)
+        db.session.add(new_style)
+        db.session.commit()
+        flash('款式添加成功', 'success')
+        
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/style/edit', methods=['POST'])
+def taokou_edit_style():
+    style_id = request.form.get('id')
+    name = request.form.get('name')
+    
+    style = TaokouStyle.query.get(style_id)
+    if style:
+        style.name = name
+        db.session.commit()
+        flash('款式修改成功', 'success')
+    else:
+        flash('款式不存在', 'danger')
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/style/delete/<int:id>', methods=['POST'])
+def taokou_delete_style(id):
+    style = TaokouStyle.query.get(id)
+    if style:
+        db.session.delete(style)
+        db.session.commit()
+        flash('款式删除成功', 'success')
+    else:
+        flash('款式不存在', 'danger')
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/unit/add', methods=['POST'])
+def taokou_add_unit():
+    name = request.form.get('name')
+    if TaokouProcessingUnit.query.filter_by(name=name).first():
+        flash('该加工单位已存在', 'danger')
+    else:
+        new_unit = TaokouProcessingUnit(name=name)
+        db.session.add(new_unit)
+        db.session.commit()
+        flash('加工单位添加成功', 'success')
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/unit/edit', methods=['POST'])
+def taokou_edit_unit():
+    unit_id = request.form.get('id')
+    name = request.form.get('name')
+    
+    unit = TaokouProcessingUnit.query.get(unit_id)
+    if unit:
+        unit.name = name
+        db.session.commit()
+        flash('加工单位修改成功', 'success')
+    else:
+        flash('加工单位不存在', 'danger')
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/unit/delete/<int:id>', methods=['POST'])
+def taokou_delete_unit(id):
+    unit = TaokouProcessingUnit.query.get(id)
+    if unit:
+        db.session.delete(unit)
+        db.session.commit()
+        flash('加工单位删除成功', 'success')
+    else:
+        flash('加工单位不存在', 'danger')
     return redirect(url_for('taokou_index'))
 
 if __name__ == '__main__':

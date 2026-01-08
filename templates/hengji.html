@@ -7,12 +7,12 @@
     <!-- Styles Management (Top Left) -->
     <div class="col-md-6">
         <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#collapseStyles" aria-expanded="false">
-                <div class="d-flex align-items-center">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target="#collapseStyles" aria-expanded="false" style="cursor: pointer;">
                     <span class="me-2 text-muted fw-bold rotate-icon">&rsaquo;</span>
                     <h5 class="mb-0">款式管理</h5>
                 </div>
-                <button type="button" class="btn btn-sm btn-success" onclick="event.stopPropagation(); openAddStyle()">添加款式</button>
+                <button type="button" class="btn btn-sm btn-success" onclick="openAddStyle()">添加款式</button>
             </div>
             <div class="collapse" id="collapseStyles">
                 <div class="card-body p-0">
@@ -35,7 +35,7 @@
                                             onclick="openEditStyle('{{ style.id }}', '{{ style.name }}', '{{ style.unit_weight }}')">
                                             修改
                                         </button>
-                                        <form action="{{ url_for('delete_style', id=style.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除吗？');">
+                                        <form action="{{ url_for('hengji_delete_style', id=style.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除吗？');">
                                             <button type="submit" class="btn btn-sm btn-outline-danger py-0">删除</button>
                                         </form>
                                     </td>
@@ -52,12 +52,12 @@
     <!-- Processing Unit Management (Top Right) -->
     <div class="col-md-6">
         <div class="card shadow-sm">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#collapseUnits" aria-expanded="false">
-                <div class="d-flex align-items-center">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target="#collapseUnits" aria-expanded="false" style="cursor: pointer;">
                     <span class="me-2 text-muted fw-bold rotate-icon">&rsaquo;</span>
                     <h5 class="mb-0">加工单位管理</h5>
                 </div>
-                <button type="button" class="btn btn-sm btn-success" onclick="event.stopPropagation(); openAddUnit()">添加单位</button>
+                <button type="button" class="btn btn-sm btn-success" onclick="openAddUnit()">添加单位</button>
             </div>
             <div class="collapse" id="collapseUnits">
                 <div class="card-body p-0">
@@ -78,7 +78,7 @@
                                             onclick="openEditUnit('{{ unit.id }}', '{{ unit.name }}')">
                                             修改
                                         </button>
-                                        <form action="{{ url_for('delete_unit', id=unit.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除吗？');">
+                                        <form action="{{ url_for('hengji_delete_unit', id=unit.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除吗？');">
                                             <button type="submit" class="btn btn-sm btn-outline-danger py-0">删除</button>
                                         </form>
                                     </td>
@@ -99,7 +99,7 @@
         <h5 class="mb-0">新增记录</h5>
     </div>
     <div class="card-body">
-        <form action="{{ url_for('add') }}" method="POST" class="row g-3 align-items-center">
+        <form action="{{ url_for('hengji_add') }}" method="POST" class="row g-3 align-items-center">
             <!-- Hidden inputs to persist filters -->
             <input type="hidden" name="filter_date_range" value="{{ current_filters.date_range }}">
             <input type="hidden" name="filter_show_aggregate" value="{{ show_aggregate }}">
@@ -143,7 +143,7 @@
         <h5 class="mb-0">加工明细</h5>
     </div>
     <div class="card-body border-bottom bg-light">
-        <form action="{{ url_for('index') }}" method="POST" class="row g-3 align-items-end" id="filterForm">
+        <form action="{{ url_for('hengji_index') }}" method="POST" class="row g-3 align-items-end" id="filterForm">
             <div class="col-md-4">
                 <div class="d-flex justify-content-between align-items-center">
                     <label class="form-label small text-muted mb-1">日期范围</label>
@@ -175,7 +175,7 @@
             </div>
              <div class="col-md-2 d-flex gap-2 align-items-end">
                 <div class="d-grid w-50">
-                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">重置</a>
+                    <a href="{{ url_for('hengji_index') }}" class="btn btn-outline-secondary">重置</a>
                 </div>
                 <div class="d-grid w-50">
                     <button type="submit" name="action" value="toggle_aggregate" class="btn btn-{{ 'primary' if show_aggregate else 'outline-primary' }}">
@@ -212,7 +212,7 @@
                             onclick="openEditRecord('{{ r.id }}', '{{ r.date }}', '{{ r.style_name }}', '{{ r.processing_unit }}', '{{ r.pieces }}')">
                             修改
                         </button>
-                        <form action="{{ url_for('delete_record', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除这条记录吗？');">
+                        <form action="{{ url_for('hengji_delete_record', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除这条记录吗？');">
                             <!-- Persist filters on delete -->
                             <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
                             <input type="hidden" name="show_aggregate" value="{{ show_aggregate }}">
@@ -251,7 +251,7 @@
 <div class="modal fade" id="addStyleModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('add_style') }}" method="POST">
+            <form action="{{ url_for('hengji_add_style') }}" method="POST">
                 <div class="modal-header">
                     <h5 class="modal-title">添加款式</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -279,7 +279,7 @@
 <div class="modal fade" id="editStyleModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('edit_style') }}" method="POST">
+            <form action="{{ url_for('hengji_edit_style') }}" method="POST">
                 <input type="hidden" name="id" id="edit_style_id">
                 <div class="modal-header">
                     <h5 class="modal-title">修改款式</h5>
@@ -308,7 +308,7 @@
 <div class="modal fade" id="editRecordModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('edit_record') }}" method="POST">
+            <form action="{{ url_for('hengji_edit_record') }}" method="POST">
                 <input type="hidden" name="id" id="edit_record_id">
                 <input type="hidden" name="filter_date_range" value="{{ current_filters.date_range }}">
                 <input type="hidden" name="filter_show_aggregate" value="{{ show_aggregate }}">
@@ -363,7 +363,7 @@
 <div class="modal fade" id="addUnitModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('add_unit') }}" method="POST">
+            <form action="{{ url_for('hengji_add_unit') }}" method="POST">
                 <div class="modal-header">
                     <h5 class="modal-title">添加加工单位</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -387,7 +387,7 @@
 <div class="modal fade" id="editUnitModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('edit_unit') }}" method="POST">
+            <form action="{{ url_for('hengji_edit_unit') }}" method="POST">
                 <input type="hidden" name="id" id="edit_unit_id">
                 <div class="modal-header">
                     <h5 class="modal-title">修改加工单位</h5>
@@ -474,7 +474,7 @@
         flatpickr("#edit_record_date", {
             dateFormat: "Y-m-d",
             allowInput: true,
-             locale: "zh"
+            locale: "zh"
         });
 
         var modal = getModal('editRecordModal');
