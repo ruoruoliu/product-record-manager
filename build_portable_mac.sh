@@ -65,7 +65,7 @@ if [ -d "static" ]; then cp -r static "$FULL_APP_PATH/"; fi
 
 # 7. Create Startup Script
 echo "Creating startup script..."
-cat > "$FULL_APP_PATH/run.bat" << EOL
+cat > "$FULL_APP_PATH/管理系统.bat" << EOL
 @echo off
 echo Starting Product Manager...
 REM We pass --production to tell app.py to handle browser opening and auto-shutdown

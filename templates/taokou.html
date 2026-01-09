@@ -108,6 +108,19 @@
             <input type="hidden" name="filter_unit" value="{{ u }}">
             {% endfor %}
             
+            <div class="col-12">
+                 <div class="d-flex gap-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="record_type" id="addTypeIssue" value="issue" checked>
+                        <label class="form-check-label text-success fw-bold" for="addTypeIssue">发出</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="record_type" id="addTypeReceive" value="receive">
+                        <label class="form-check-label text-danger fw-bold" for="addTypeReceive">收回</label>
+                    </div>
+                </div>
+            </div>
+            
             <div class="col-md-3">
                 <select name="style_name" class="form-select" required>
                     <option value="" disabled selected>选择款式</option>
@@ -128,7 +141,7 @@
                 <input type="number" name="pieces" class="form-control" placeholder="录入件数" required>
             </div>
             <div class="col-md-3">
-                <button type="submit" class="btn btn-primary w-100">添加记录</button>
+                <button type="submit" id="addRecordBtn" class="btn btn-success w-100">添加记录</button>
             </div>
         </form>
     </div>
@@ -188,56 +201,75 @@
         <table class="table table-hover mb-0">
             <thead class="table-light">
                 <tr>
-                    <th style="width: 25%">日期</th>
-                    <th style="width: 25%">加工单位</th>
-                    <th style="width: 25%">款式</th>
-                    <th style="width: 15%">件数</th>
-                    <th class="text-end" style="width: 10%">操作</th>
+                    <th class="text-center" style="width: 12%;">日期</th>
+                    <th style="width: 15%;">加工单位</th>
+                    <th style="width: 15%;">款式</th>
+                    <th title="发出件数" style="width: 15%;">发出</th>
+                    <th title="收回件数" style="width: 15%;">收回</th>
+                    <th title="待收回结余" style="width: 13%;">结余</th>
+                    <th class="text-center" style="width: 15%; min-width: 140px;">操作</th>
                 </tr>
             </thead>
             <tbody>
                 {% for r in records %}
-                <tr>
-                    <td>{{ r.date }}</td>
+                <tr class="align-middle">
+                    <td class="text-center">{{ r.date }}</td>
                     <td>{{ r.processing_unit or '-' }}</td>
                     <td>{{ r.style_name }}</td>
-                    <td>{{ r.pieces }}</td>
-                    {% if not show_aggregate %}
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary py-0 me-1" 
-                            onclick="openEditRecord('{{ r.id }}', '{{ r.date }}', '{{ r.style_name }}', '{{ r.processing_unit }}', '{{ r.pieces }}')">
-                            修改
-                        </button>
-                        <form action="{{ url_for('taokou_delete_record', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除这条记录吗？');">
-                            <!-- Persist filters on delete -->
-                            <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
-                            <input type="hidden" name="show_aggregate" value="{{ show_aggregate }}">
-                            {% for s in current_filters.style %}
-                            <input type="hidden" name="style_filter" value="{{ s }}">
-                            {% endfor %}
-                            {% for u in current_filters.unit %}
-                            <input type="hidden" name="unit_filter" value="{{ u }}">
-                            {% endfor %}
-                            <button type="submit" class="btn btn-sm btn-outline-danger py-0">删除</button>
-                        </form>
+
+                    <!-- Issued Column -->
+                    <td class="text-success">
+                        {% if show_aggregate %}
+                            {{ r.issued_count }}
+                        {% else %}
+                            {% if r.pieces > 0 %}{{ r.pieces }}{% endif %}
+                        {% endif %}
                     </td>
-                    {% else %}
-                    <td class="text-end"></td>
-                    {% endif %}
+
+                    <!-- Received Column -->
+                    <td class="text-danger">
+                        {% if show_aggregate %}
+                            {{ r.received_count }}
+                        {% else %}
+                            {% if r.pieces < 0 %}{{ r.pieces | abs }}{% endif %}
+                        {% endif %}
+                    </td>
+
+                    <!-- Balance Column -->
+                    <td class="fw-bold {{ 'text-success' if r.pieces >= 0 else 'text-danger' }}">
+                         {% if show_aggregate %}
+                            {{ r.pieces }}
+                        {% endif %}
+                    </td>
+
+                    <!-- Operation Column -->
+                    <td class="text-center text-nowrap">
+                         {% if not show_aggregate %}
+                            <button class="btn btn-sm btn-outline-primary py-0 me-1" 
+                                onclick="openEditRecord('{{ r.id }}', '{{ r.date }}', '{{ r.style_name }}', '{{ r.processing_unit }}', '{{ r.pieces }}')">
+                                修改
+                            </button>
+                            <form action="{{ url_for('taokou_delete_record', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除这条记录吗？');">
+                                <!-- Persist filters on delete -->
+                                <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
+                                <input type="hidden" name="show_aggregate" value="{{ show_aggregate }}">
+                                {% for s in current_filters.style %}
+                                <input type="hidden" name="style_filter" value="{{ s }}">
+                                {% endfor %}
+                                {% for u in current_filters.unit %}
+                                <input type="hidden" name="unit_filter" value="{{ u }}">
+                                {% endfor %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0">删除</button>
+                            </form>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-3">暂无记录</td>
+                    <td colspan="7" class="text-center text-muted py-3">暂无记录</td>
                 </tr>
                 {% endfor %}
             </tbody>
-            <tfoot class="table-light fw-bold">
-                <tr>
-                    <td colspan="3" class="text-end border-0">本页汇总:</td>
-                    <td class="border-0">{{ total_pieces }}</td>
-                    <td class="border-0"></td>
-                </tr>
-            </tfoot>
         </table>
     </div>
 </div>
@@ -278,8 +310,24 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">款式名称</label>
-                        <input type="text" name="name" id="edit_style_name" class="form-control" required>
+                         <div class="d-flex gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="record_type" id="editTypeIssue" value="issue">
+                                <label class="form-check-label fw-bold text-success" for="editTypeIssue">
+                                    发出
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="record_type" id="editTypeReceive" value="receive">
+                                <label class="form-check-label fw-bold text-danger" for="editTypeReceive">
+                                    收回
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">日期</label>
+                        <input type="text" name="date" id="edit_record_date" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -455,7 +503,15 @@
         document.getElementById('edit_record_date').value = date;
         document.getElementById('edit_record_unit').value = unit_name;
         document.getElementById('edit_record_style').value = style_name;
-        document.getElementById('edit_record_pieces').value = pieces;
+        
+        var numericPieces = parseInt(pieces);
+        if (numericPieces < 0) {
+            document.getElementById('editTypeReceive').checked = true;
+            document.getElementById('edit_record_pieces').value = Math.abs(numericPieces);
+        } else {
+            document.getElementById('editTypeIssue').checked = true;
+            document.getElementById('edit_record_pieces').value = numericPieces;
+        }
         
         // Initialize flatpickr for modal date input if needed
         flatpickr("#edit_record_date", {
@@ -490,6 +546,26 @@
                 }
             }
         });
+
+        // Toggle button color on radio change
+        var addRecordBtn = document.getElementById('addRecordBtn');
+        var radioIssue = document.getElementById('addTypeIssue');
+        var radioReceive = document.getElementById('addTypeReceive');
+
+        function updateButtonColor() {
+            if (radioReceive.checked) {
+                addRecordBtn.classList.remove('btn-success');
+                addRecordBtn.classList.add('btn-danger');
+            } else {
+                addRecordBtn.classList.remove('btn-danger');
+                addRecordBtn.classList.add('btn-success');
+            }
+        }
+
+        if (addRecordBtn && radioIssue && radioReceive) {
+            radioIssue.addEventListener('change', updateButtonColor);
+            radioReceive.addEventListener('change', updateButtonColor);
+        }
     });
 </script>
 {% endblock %}

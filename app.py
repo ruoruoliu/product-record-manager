@@ -1,34 +1,21 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text, inspect, func
+from sqlalchemy import text, inspect, func, case
 from datetime import datetime, timedelta
 import os
 import sys
+import time
+import json # Added import
 
-# Determine if running in a frozen state (PyInstaller exe) or normal script
-if getattr(sys, 'frozen', False):
-    # If the application is run as a bundle, the PyInstaller bootloader
-    # extends the sys module by a flag frozen=True and sets the app 
-    # path into variable _MEIPASS'.
-    # We use this path to locate static and template resources inside the exe.
-    base_dir = sys._MEIPASS
-    template_folder = os.path.join(base_dir, 'templates')
-    static_folder = os.path.join(base_dir, 'static')
-    # The database should be created in the same folder as the exe file,
-    # not inside the temporary _MEIPASS folder.
-    application_path = os.path.dirname(sys.executable)
-else:
-    # Normal development environment
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    template_folder = 'templates'
-    static_folder = 'static'
-    application_path = base_dir
+# Normal development environment and portable folder
+base_dir = os.path.dirname(os.path.abspath(__file__))
+# Database is always in the same directory as the script
+db_path = os.path.join(base_dir, 'factory.db')
 
-app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
+# Global heartbeat timestamp
+last_heartbeat = time.time()
 
-# database stored in factory.db
-# Use absolute path to ensure DB is created next to the executable/script
-db_path = os.path.join(application_path, 'factory.db')
+app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Increase SQLite timeout to reduce locking issues (default is 5s)
@@ -168,7 +155,11 @@ def hengji_index():
             HengjiRecord.processing_unit,
             HengjiRecord.style_name,
             func.sum(HengjiRecord.pieces).label('pieces'),
-            func.sum(HengjiRecord.total_weight).label('total_weight')
+            func.sum(case((HengjiRecord.pieces > 0, HengjiRecord.pieces), else_=0)).label('issued_count'),
+            func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.pieces)), else_=0)).label('received_count'),
+            func.sum(HengjiRecord.total_weight).label('total_weight'),
+            func.sum(case((HengjiRecord.pieces > 0, HengjiRecord.total_weight), else_=0)).label('issued_weight'),
+            func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.total_weight)), else_=0)).label('received_weight')
         ).group_by(
             HengjiRecord.date,
             HengjiRecord.processing_unit,
@@ -213,6 +204,13 @@ def hengji_add():
     except ValueError:
         flash('件数必须是整数', 'danger')
         return redirect(url_for('hengji_index'))
+
+    # Handle Issue/Receive logic
+    record_type = request.form.get('record_type')
+    if record_type == 'receive':
+        pieces = -abs(pieces)
+    else:
+        pieces = abs(pieces)
 
     style = HengjiStyle.query.filter_by(name=style_name).first()
     if not style:
@@ -369,6 +367,13 @@ def hengji_edit_record():
         flash('件数必须是整数', 'danger')
         return redirect(url_for('hengji_index'))
 
+    # Handle Issue/Receive logic
+    record_type = request.form.get('record_type')
+    if record_type == 'receive':
+        pieces = -abs(pieces)
+    else:
+        pieces = abs(pieces)
+
     record = HengjiRecord.query.get(record_id)
     if record:
         style = HengjiStyle.query.filter_by(name=style_name).first()
@@ -433,7 +438,9 @@ def taokou_index():
             TaokouRecord.date,
             TaokouRecord.processing_unit,
             TaokouRecord.style_name,
-            func.sum(TaokouRecord.pieces).label('pieces')
+            func.sum(TaokouRecord.pieces).label('pieces'),
+            func.sum(case((TaokouRecord.pieces > 0, TaokouRecord.pieces), else_=0)).label('issued_count'),
+            func.sum(case((TaokouRecord.pieces < 0, func.abs(TaokouRecord.pieces)), else_=0)).label('received_count')
         ).group_by(
             TaokouRecord.date,
             TaokouRecord.processing_unit,
@@ -474,6 +481,13 @@ def taokou_add():
     except ValueError:
         flash('件数必须是整数', 'danger')
         return redirect(url_for('taokou_index'))
+
+    # Handle Issue/Receive logic
+    record_type = request.form.get('record_type')
+    if record_type == 'receive':
+        pieces = -abs(pieces)
+    else:
+        pieces = abs(pieces)
 
     style = TaokouStyle.query.filter_by(name=style_name).first()
     if not style:
@@ -523,6 +537,13 @@ def taokou_edit_record():
     except ValueError:
         flash('件数必须是整数', 'danger')
         return redirect(url_for('taokou_index'))
+
+    # Handle Issue/Receive logic
+    record_type = request.form.get('record_type')
+    if record_type == 'receive':
+        pieces = -abs(pieces)
+    else:
+        pieces = abs(pieces)
 
     record = TaokouRecord.query.get(record_id)
     if record:
@@ -616,32 +637,53 @@ if __name__ == '__main__':
     import webbrowser
     import socket
     from threading import Timer, Thread
-    import time
     
     # Check execution mode
-    # 1. PyInstaller sets 'frozen'
-    # 2. Our portable script passes '--production'
-    is_production = getattr(sys, 'frozen', False) or '--production' in sys.argv
-
-    # --- Single Instance Check ---
-    # Try to connect to the port. If successful, the server is already running.
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    is_already_running = sock.connect_ex(('127.0.0.1', 5000)) == 0
-    sock.close()
+    # Our portable script passes '--production'
+    is_production = '--production' in sys.argv
+    
+    # Check if we are in the Flask Re-loader subprocess (Development mode only)
+    # If we are the reloader child, we should skip the port check because
+    # the parent process has already "authorized" us to run.
+    is_werkzeug_reloader_child = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
+    
+    PORT = 5792
 
     def open_browser():
-        webbrowser.open_new('http://127.0.0.1:5000')
+        webbrowser.open_new(f'http://127.0.0.1:{PORT}')
 
-    if is_already_running:
-        print("Application is already running. Opening browser...")
-        open_browser()
-        # Exit this duplicate instance
-        sys.exit(0)
+    # --- Single Instance Check ---
+    # Only perform this check if we are NOT a reloader child.
+    if not is_werkzeug_reloader_child:
+        # Try to bind to the port. If we can bind, it's free. If we can't, it's taken.
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Allow reusing the address to ignore TIME_WAIT states from previous quick restarts
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(('127.0.0.1', PORT))
+            is_already_running = False
+        except OSError:
+            is_already_running = True
+        finally:
+            sock.close()
+
+        if is_already_running:
+            print(f"Port {PORT} is already in use. Opening browser and exiting...")
+            open_browser()
+            sys.exit(0)
+    # else:
+    #    If we are the child, we still need the PORT variable defined, 
+    #    but we defined it globally above, so no else block needed for PORT.
     # -----------------------------
+
+    @app.route('/heartbeat', methods=['POST'])
+    def handle_heartbeat():
+        global last_heartbeat
+        last_heartbeat = time.time()
+        return "OK"
 
     # --- Auto-Shutdown Logic (Only for Production) ---
     if is_production:
-        last_heartbeat = time.time()
         SHUTDOWN_TIMEOUT = 5 
 
         def heartbeat_monitor():
@@ -649,18 +691,28 @@ if __name__ == '__main__':
             time.sleep(15) # Grace period
             while True:
                 if time.time() - last_heartbeat > SHUTDOWN_TIMEOUT:
-                    print(f"No heartbeat for {SHUTDOWN_TIMEOUT}s. Shutting down...")
+                    try:
+                        print(f"No heartbeat for {SHUTDOWN_TIMEOUT}s. Shutting down...")
+                        sys.stdout.flush()
+                    except:
+                        pass # Ignore print errors (e.g. if running without console)
+                    
+                    # 在 Windows 下尝试直接关闭控制台窗口，避免批处理 scripts 中的 pause 等待输入
+                    if sys.platform == 'win32':
+                        try:
+                            import ctypes
+                            hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+                            if hwnd != 0:
+                                # 发送 WM_CLOSE (0x0010) 消息给控制台窗口
+                                ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
+                        except:
+                            pass
+                            
                     os._exit(0)
                 time.sleep(1)
 
         monitor_thread = Thread(target=heartbeat_monitor, daemon=True)
         monitor_thread.start()
-
-        @app.route('/heartbeat', methods=['POST'])
-        def handle_heartbeat():
-            global last_heartbeat
-            last_heartbeat = time.time()
-            return "OK"
 
     print("Starting server...")
     if is_production:
@@ -668,8 +720,8 @@ if __name__ == '__main__':
         # 1. Open browser automatically (since we are the first instance)
         # 2. Disable debug mode
         Timer(1.5, open_browser).start()
-        app.run(debug=False, port=5000)
+        app.run(debug=False, port=PORT)
     else:
         # Development mode
-        print("Running in development mode on: http://127.0.0.1:5000")
-        app.run(debug=True, port=5000)
+        print(f"Running in development mode on: http://127.0.0.1:{PORT}")
+        app.run(debug=True, port=PORT)
