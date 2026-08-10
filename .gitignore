@@ -13,7 +13,6 @@ build/
 dist/
 *.egg-info/
 packages/
-dist_portable/
 
 # 数据库文件
 *.db
