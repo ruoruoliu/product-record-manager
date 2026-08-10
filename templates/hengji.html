@@ -145,6 +145,17 @@
             <div class="col-md-3">
                 <button type="submit" id="addRecordBtn" class="btn btn-success w-100">添加记录</button>
             </div>
+            <script>
+            (function(){
+                var t = localStorage.getItem('hengji_record_type');
+                if (t === 'receive') {
+                    document.getElementById('addTypeReceive').checked = true;
+                    var btn = document.getElementById('addRecordBtn');
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-danger');
+                }
+            })();
+            </script>
         </form>
     </div>
 </div>
@@ -164,13 +175,17 @@
                         <a href="javascript:void(0)" onclick="setQuickDate(0)" class="badge bg-light text-secondary text-decoration-none border fw-normal">今天</a>
                         <a href="javascript:void(0)" onclick="setQuickDate(6)" class="badge bg-light text-secondary text-decoration-none border fw-normal">近7天</a>
                         <a href="javascript:void(0)" onclick="setQuickDate(29)" class="badge bg-light text-secondary text-decoration-none border fw-normal">近30天</a>
+                        <a href="javascript:void(0)" onclick="setQuickDate(89)" class="badge bg-light text-secondary text-decoration-none border fw-normal">近三月</a>
+                        <a href="javascript:void(0)" onclick="setQuickDate(179)" class="badge bg-light text-secondary text-decoration-none border fw-normal">近半年</a>
+                        <a href="javascript:void(0)" onclick="setQuickDate(364)" class="badge bg-light text-secondary text-decoration-none border fw-normal">近一年</a>
+                        <a href="javascript:void(0)" onclick="clearDateRange()" class="badge bg-light text-secondary text-decoration-none border fw-normal">全部</a>
                     </div>
                 </div>
                 <input type="text" name="date_range" id="dateRange" class="form-control bg-white" placeholder="选择日期范围..." value="{{ current_filters.date_range }}">
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">款式</label>
-                 <select name="style_filter" id="style_filter" class="form-select" onchange="document.getElementById('filterForm').submit()">
+                 <select name="style_filter" id="style_filter" class="form-select">
                     <option value="">全部</option>
                     {% for s in styles %}
                     <option value="{{ s.name }}" {% if s.name in current_filters.style %}selected{% endif %}>{{ s.name }}</option>
@@ -179,7 +194,7 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label small text-muted mb-1">加工单位</label>
-                <select name="unit_filter" id="unit_filter" class="form-select" onchange="document.getElementById('filterForm').submit()">
+                <select name="unit_filter" id="unit_filter" class="form-select">
                     <option value="">全部</option>
                     {% for u in units %}
                     <option value="{{ u.name }}" {% if u.name in current_filters.unit %}selected{% endif %}>{{ u.name }}</option>
@@ -191,15 +206,14 @@
                     <a href="{{ url_for('hengji_index') }}" class="btn btn-outline-secondary">重置</a>
                 </div>
                 <div class="d-grid w-50">
-                    <button type="submit" name="action" value="toggle_aggregate" class="btn btn-{{ 'primary' if show_aggregate else 'outline-primary' }}">
+                    <button type="button" id="toggleAggregateBtn" onclick="toggleAggregate()" class="btn btn-{{ 'primary' if show_aggregate else 'outline-primary' }}">
                         {{ '明细' if show_aggregate else '聚合' }}
                     </button>
-                    <input type="hidden" name="current_show_aggregate" value="{{ show_aggregate }}">
                 </div>
             </div>
         </form>
     </div>
-    <div class="table-responsive">
+    <div class="table-responsive" id="recordsTable">
         <table class="table table-hover mb-0">
             <thead class="table-light">
                 <tr>
@@ -473,16 +487,51 @@
 
 {% block scripts %}
 <script>
+    var showAggregate = {{ 'true' if show_aggregate else 'false' }};
+
+    function loadTable() {
+        var form = document.getElementById('filterForm');
+        var fd = new FormData(form);
+        var params = new URLSearchParams();
+        for (var pair of fd.entries()) {
+            if (pair[1]) params.append(pair[0], pair[1]);
+        }
+        if (showAggregate) params.set('show_aggregate', 'true');
+
+        fetch('/hengji/table?' + params.toString())
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                document.getElementById('recordsTable').outerHTML = html;
+            });
+    }
+
+    function toggleAggregate() {
+        showAggregate = !showAggregate;
+        var btn = document.getElementById('toggleAggregateBtn');
+        btn.textContent = showAggregate ? '\u660e\u7ec6' : '\u805a\u5408';
+        btn.className = 'btn btn-' + (showAggregate ? 'primary' : 'outline-primary');
+        loadTable();
+    }
+
     function setQuickDate(daysAgo) {
         const end = new Date();
         const start = new Date();
         start.setDate(start.getDate() - daysAgo);
-        
+
         const el = document.querySelector("#dateRange");
         if (el && el._flatpickr) {
             el._flatpickr.setDate([start, end], true);
-            document.getElementById('filterForm').submit();
+            loadTable();
         }
+    }
+
+    function clearDateRange() {
+        var el = document.getElementById('dateRange');
+        if (el) el.value = '';
+        if (el && el._flatpickr) {
+            el._flatpickr.clear();
+        }
+        loadTable();
     }
 
     // Helper to get or create BS5 modal instance
@@ -512,7 +561,7 @@
         document.getElementById('edit_style_id').value = id;
         document.getElementById('edit_style_name').value = name;
         document.getElementById('edit_style_weight').value = weight;
-        
+
         var modal = getModal('editStyleModal');
         if (modal) modal.show();
     }
@@ -520,17 +569,17 @@
     function openEditUnit(id, name) {
         document.getElementById('edit_unit_id').value = id;
         document.getElementById('edit_unit_name').value = name;
-        
+
         var modal = getModal('editUnitModal');
         if (modal) modal.show();
     }
-    
+
     function openEditRecord(id, date, style_name, unit_name, pieces) {
         document.getElementById('edit_record_id').value = id;
         document.getElementById('edit_record_date').value = date;
         document.getElementById('edit_record_unit').value = unit_name;
         document.getElementById('edit_record_style').value = style_name;
-        
+
         var numericPieces = parseInt(pieces);
         if (numericPieces < 0) {
             document.getElementById('editTypeReceive').checked = true;
@@ -567,12 +616,15 @@
             locale: "zh",
             defaultDate: "{{ current_filters.date_range }}" || null,
             onClose: function(selectedDates, dateStr, instance) {
-                // Submit only if date string has changed to avoid unnecessary reloads
-                if (dateStr !== "{{ current_filters.date_range }}") {
-                    document.getElementById('filterForm').submit();
-                }
+                loadTable();
             }
         });
+
+        // Filter select change handlers
+        var styleFilter = document.getElementById('style_filter');
+        var unitFilter = document.getElementById('unit_filter');
+        if (styleFilter) styleFilter.addEventListener('change', loadTable);
+        if (unitFilter) unitFilter.addEventListener('change', loadTable);
 
         // Toggle button color on radio change
         var addRecordBtn = document.getElementById('addRecordBtn');
@@ -590,8 +642,15 @@
         }
 
         if (addRecordBtn && radioIssue && radioReceive) {
-            radioIssue.addEventListener('change', updateButtonColor);
-            radioReceive.addEventListener('change', updateButtonColor);
+            // Save radio state to localStorage on change
+            radioIssue.addEventListener('change', function() {
+                localStorage.setItem('hengji_record_type', 'issue');
+                updateButtonColor();
+            });
+            radioReceive.addEventListener('change', function() {
+                localStorage.setItem('hengji_record_type', 'receive');
+                updateButtonColor();
+            });
         }
     });
 </script>

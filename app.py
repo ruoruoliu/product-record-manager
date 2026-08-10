@@ -189,6 +189,57 @@ def hengji_index():
         }
     )
 
+@app.route('/hengji/table')
+def hengji_table_partial():
+    date_range = request.args.get('date_range', '')
+    unit_filters = request.args.getlist('unit_filter')
+    style_filters = request.args.getlist('style_filter')
+    show_aggregate = request.args.get('show_aggregate') == 'true'
+
+    query = HengjiRecord.query
+
+    if unit_filters and '' not in unit_filters:
+        query = query.filter(HengjiRecord.processing_unit.in_(unit_filters))
+    if style_filters and '' not in style_filters:
+        query = query.filter(HengjiRecord.style_name.in_(style_filters))
+
+    if date_range:
+        if " 至 " in date_range:
+            start_date, end_date = date_range.split(" 至 ")
+            query = query.filter(HengjiRecord.date >= start_date)
+            query = query.filter(HengjiRecord.date <= end_date)
+        else:
+            query = query.filter(HengjiRecord.date == date_range)
+
+    if show_aggregate:
+        records = query.with_entities(
+            HengjiRecord.date,
+            HengjiRecord.processing_unit,
+            HengjiRecord.style_name,
+            func.sum(HengjiRecord.pieces).label('pieces'),
+            func.sum(case((HengjiRecord.pieces > 0, HengjiRecord.pieces), else_=0)).label('issued_count'),
+            func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.pieces)), else_=0)).label('received_count'),
+            func.sum(HengjiRecord.total_weight).label('total_weight'),
+            func.sum(case((HengjiRecord.pieces > 0, HengjiRecord.total_weight), else_=0)).label('issued_weight'),
+            func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.total_weight)), else_=0)).label('received_weight')
+        ).group_by(
+            HengjiRecord.date,
+            HengjiRecord.processing_unit,
+            HengjiRecord.style_name
+        ).order_by(HengjiRecord.date.desc()).all()
+    else:
+        records = query.order_by(HengjiRecord.id.desc()).all()
+
+    return render_template('_hengji_table.html',
+        records=records,
+        show_aggregate=show_aggregate,
+        current_filters={
+            'date_range': date_range,
+            'unit': unit_filters,
+            'style': style_filters
+        }
+    )
+
 @app.route('/hengji/add', methods=['POST'])
 def hengji_add():
     # Capture filters to persist them
@@ -459,6 +510,58 @@ def taokou_index():
         units=units,
         records=records, 
         total_pieces=total_pieces,
+        show_aggregate=show_aggregate,
+        current_filters={
+            'date_range': date_range,
+            'unit': unit_filters,
+            'style': style_filters
+        }
+    )
+
+@app.route('/taokou/table')
+def taokou_table_partial():
+    date_range = request.args.get('date_range', '')
+    unit_filters = request.args.getlist('unit_filter')
+    style_filters = request.args.getlist('style_filter')
+    show_aggregate = request.args.get('show_aggregate') == 'true'
+
+    query = TaokouRecord.query
+
+    if unit_filters and '' not in unit_filters:
+         query = query.filter(TaokouRecord.processing_unit.in_(unit_filters))
+    if style_filters and '' not in style_filters:
+         query = query.filter(TaokouRecord.style_name.in_(style_filters))
+
+    if date_range:
+        if " to " in date_range:
+            start_date, end_date = date_range.split(" to ")
+            query = query.filter(TaokouRecord.date >= start_date)
+            query = query.filter(TaokouRecord.date <= end_date)
+        elif " 至 " in date_range:
+            start_date, end_date = date_range.split(" 至 ")
+            query = query.filter(TaokouRecord.date >= start_date)
+            query = query.filter(TaokouRecord.date <= end_date)
+        else:
+            query = query.filter(TaokouRecord.date == date_range)
+
+    if show_aggregate:
+        records = query.with_entities(
+            TaokouRecord.date,
+            TaokouRecord.processing_unit,
+            TaokouRecord.style_name,
+            func.sum(TaokouRecord.pieces).label('pieces'),
+            func.sum(case((TaokouRecord.pieces > 0, TaokouRecord.pieces), else_=0)).label('issued_count'),
+            func.sum(case((TaokouRecord.pieces < 0, func.abs(TaokouRecord.pieces)), else_=0)).label('received_count')
+        ).group_by(
+            TaokouRecord.date,
+            TaokouRecord.processing_unit,
+            TaokouRecord.style_name
+        ).order_by(TaokouRecord.date.desc()).all()
+    else:
+        records = query.order_by(TaokouRecord.id.desc()).all()
+
+    return render_template('_taokou_table.html',
+        records=records,
         show_aggregate=show_aggregate,
         current_filters={
             'date_range': date_range,

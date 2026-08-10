@@ -1,0 +1,74 @@
+<div class="table-responsive" id="recordsTable">
+    <table class="table table-hover mb-0">
+        <thead class="table-light">
+            <tr>
+                <th class="text-center" style="width: 12%;">日期</th>
+                <th style="width: 15%;">加工单位</th>
+                <th style="width: 15%;">款式</th>
+                <th title="发出件数" style="width: 15%;">发出</th>
+                <th title="收回件数" style="width: 15%;">收回</th>
+                <th title="待收回结余" style="width: 13%;">结余</th>
+                <th class="text-center" style="width: 15%; min-width: 140px;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in records %}
+            <tr class="align-middle">
+                <td class="text-center">{{ r.date }}</td>
+                <td>{{ r.processing_unit or '-' }}</td>
+                <td>{{ r.style_name }}</td>
+
+                <!-- Issued Column -->
+                <td class="text-success">
+                    {% if show_aggregate %}
+                        {{ r.issued_count }}
+                    {% else %}
+                        {% if r.pieces > 0 %}{{ r.pieces }}{% endif %}
+                    {% endif %}
+                </td>
+
+                <!-- Received Column -->
+                <td class="text-danger">
+                    {% if show_aggregate %}
+                        {{ r.received_count }}
+                    {% else %}
+                        {% if r.pieces < 0 %}{{ r.pieces | abs }}{% endif %}
+                    {% endif %}
+                </td>
+
+                <!-- Balance Column -->
+                <td class="fw-bold {{ 'text-success' if r.pieces >= 0 else 'text-danger' }}">
+                     {% if show_aggregate %}
+                        {{ r.pieces }}
+                    {% endif %}
+                </td>
+
+                <!-- Operation Column -->
+                <td class="text-center text-nowrap">
+                     {% if not show_aggregate %}
+                        <button class="btn btn-sm btn-outline-primary py-0 me-1"
+                            onclick="openEditRecord('{{ r.id }}', '{{ r.date }}', '{{ r.style_name }}', '{{ r.processing_unit }}', '{{ r.pieces }}')">
+                            修改
+                        </button>
+                        <form action="{{ url_for('taokou_delete_record', id=r.id) }}" method="POST" class="d-inline" onsubmit="return confirm('确定删除这条记录吗？');">
+                            <input type="hidden" name="date_range" value="{{ current_filters.date_range }}">
+                            <input type="hidden" name="show_aggregate" value="{{ show_aggregate }}">
+                            {% for s in current_filters.style %}
+                            <input type="hidden" name="style_filter" value="{{ s }}">
+                            {% endfor %}
+                            {% for u in current_filters.unit %}
+                            <input type="hidden" name="unit_filter" value="{{ u }}">
+                            {% endfor %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-0">删除</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center text-muted py-3">暂无记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
