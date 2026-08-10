@@ -6,6 +6,7 @@ dependencies = [
   "flask",
   "Flask-SQLAlchemy",
   "psycopg2-binary",
+  "python-dotenv",
   "waitress",
 ]
 

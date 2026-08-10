@@ -25,6 +25,11 @@ Thumbs.db
 .env
 .env.*
 
+# Agent Skills
+.agents/
+.claude/
+skills-lock.json
+
 # IDE/编辑器配置 (可选，建议忽略)
 .vscode/
 .idea/
