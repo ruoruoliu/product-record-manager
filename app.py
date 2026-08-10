@@ -3,17 +3,9 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text, inspect, func, case
 from datetime import datetime, timedelta
 import os
-import sys
-import time
-import json # Added import
 
-# Normal development environment and portable folder
 base_dir = os.path.dirname(os.path.abspath(__file__))
-# Database is always in the same directory as the script
 db_path = os.path.join(base_dir, 'factory.db')
-
-# Global heartbeat timestamp
-last_heartbeat = time.time()
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
@@ -737,94 +729,8 @@ def taokou_delete_unit(id):
     return redirect(url_for('taokou_index'))
 
 if __name__ == '__main__':
-    import webbrowser
-    import socket
-    from threading import Timer, Thread
-    
-    # Check execution mode
-    # Our portable script passes '--production'
-    is_production = '--production' in sys.argv
-    
-    # Check if we are in the Flask Re-loader subprocess (Development mode only)
-    # If we are the reloader child, we should skip the port check because
-    # the parent process has already "authorized" us to run.
-    is_werkzeug_reloader_child = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
-    
-    PORT = 5792
-
-    def open_browser():
-        webbrowser.open_new(f'http://127.0.0.1:{PORT}')
-
-    # --- Single Instance Check ---
-    # Only perform this check if we are NOT a reloader child.
-    if not is_werkzeug_reloader_child:
-        # Try to bind to the port. If we can bind, it's free. If we can't, it's taken.
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # Allow reusing the address to ignore TIME_WAIT states from previous quick restarts
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            sock.bind(('127.0.0.1', PORT))
-            is_already_running = False
-        except OSError:
-            is_already_running = True
-        finally:
-            sock.close()
-
-        if is_already_running:
-            print(f"Port {PORT} is already in use. Opening browser and exiting...")
-            open_browser()
-            sys.exit(0)
-    # else:
-    #    If we are the child, we still need the PORT variable defined, 
-    #    but we defined it globally above, so no else block needed for PORT.
-    # -----------------------------
-
-    @app.route('/heartbeat', methods=['POST'])
-    def handle_heartbeat():
-        global last_heartbeat
-        last_heartbeat = time.time()
-        return "OK"
-
-    # --- Auto-Shutdown Logic (Only for Production) ---
-    if is_production:
-        SHUTDOWN_TIMEOUT = 5 
-
-        def heartbeat_monitor():
-            global last_heartbeat
-            time.sleep(15) # Grace period
-            while True:
-                if time.time() - last_heartbeat > SHUTDOWN_TIMEOUT:
-                    try:
-                        print(f"No heartbeat for {SHUTDOWN_TIMEOUT}s. Shutting down...")
-                        sys.stdout.flush()
-                    except:
-                        pass # Ignore print errors (e.g. if running without console)
-                    
-                    # 在 Windows 下尝试直接关闭控制台窗口，避免批处理 scripts 中的 pause 等待输入
-                    if sys.platform == 'win32':
-                        try:
-                            import ctypes
-                            hwnd = ctypes.windll.kernel32.GetConsoleWindow()
-                            if hwnd != 0:
-                                # 发送 WM_CLOSE (0x0010) 消息给控制台窗口
-                                ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
-                        except:
-                            pass
-                            
-                    os._exit(0)
-                time.sleep(1)
-
-        monitor_thread = Thread(target=heartbeat_monitor, daemon=True)
-        monitor_thread.start()
-
-    print("Starting server...")
-    if is_production:
-        # If running in production (exe or portable):
-        # 1. Open browser automatically (since we are the first instance)
-        # 2. Disable debug mode
-        Timer(1.5, open_browser).start()
-        app.run(debug=False, port=PORT)
-    else:
-        # Development mode
-        print(f"Running in development mode on: http://127.0.0.1:{PORT}")
-        app.run(debug=True, port=PORT)
+    port = int(os.environ.get('PORT', 5792))
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    if debug:
+        print(f"Running in development mode on: http://127.0.0.1:{port}")
+    app.run(host='0.0.0.0', port=port, debug=debug)

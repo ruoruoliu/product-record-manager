@@ -5,6 +5,7 @@ description = "a simple local web project using flask + sqlite"
 dependencies = [
   "flask",
   "Flask-SQLAlchemy",
+  "waitress",
 ]
 
 [build-system]
