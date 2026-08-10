@@ -4,14 +4,12 @@ from sqlalchemy import text, inspect, func, case
 from datetime import datetime, timedelta
 import os
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(base_dir, 'factory.db')
-
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL',
+    'sqlite:///' + os.path.join(os.path.dirname(os.path.abspath(__file__)), 'factory.db')
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# Increase SQLite timeout to reduce locking issues (default is 5s)
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'timeout': 15}}
 app.secret_key = 'dev_secret_key_change_this_production_random_string'
 db = SQLAlchemy(app)
 
