@@ -294,7 +294,7 @@ def hengji_add():
     total_weight = pieces * style.unit_weight
 
     date_str = request.form.get('date', datetime.now().strftime('%Y-%m-%d'))
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     new_rec = HengjiRecord(
         date = date_str,
         operated_at = now_str,
@@ -421,7 +421,7 @@ def hengji_delete_record(id):
     record = HengjiRecord.query.get(id)
     if record:
         record.is_active = False
-        record.operated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        record.operated_at = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         db.session.commit()
         flash('记录删除成功', 'success')
     else:
@@ -465,7 +465,7 @@ def hengji_edit_record():
         record.processing_unit = processing_unit
         record.pieces = pieces
         record.total_weight = round(pieces * style.unit_weight, 4)
-        record.operated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        record.operated_at = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 
         db.session.commit()
         flash('记录修改成功', 'success')
@@ -641,7 +641,7 @@ def taokou_add():
         return redirect(url_for('taokou_index'))
 
     date_str = request.form.get('date', datetime.now().strftime('%Y-%m-%d'))
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     new_rec = TaokouRecord(
         date = date_str,
         operated_at = now_str,
@@ -665,7 +665,7 @@ def taokou_delete_record(id):
     record = TaokouRecord.query.get(id)
     if record:
         record.is_active = False
-        record.operated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        record.operated_at = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         db.session.commit()
         flash('记录删除成功', 'success')
     else:
@@ -702,7 +702,7 @@ def taokou_edit_record():
         record.style_name = style_name
         record.processing_unit = processing_unit
         record.pieces = pieces
-        record.operated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        record.operated_at = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         db.session.commit()
         flash('记录修改成功', 'success')
     else:
