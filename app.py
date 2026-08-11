@@ -179,11 +179,11 @@ def hengji_index():
             op = r.max_operated_at or ''
             if r.processing_unit not in unit_max or op > unit_max[r.processing_unit]:
                 unit_max[r.processing_unit] = op
-        records = sorted(records, key=lambda r: r.style_name)
+        records = sorted(records, key=lambda r: r.max_operated_at or '', reverse=True)
         records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
         records = query.order_by(HengjiRecord.id.desc()).all()
-    
+
     # Calculate summary
     total_weight = sum(r.total_weight for r in records)
     total_pieces = sum(r.pieces for r in records)
@@ -248,7 +248,7 @@ def hengji_table_partial():
             op = r.max_operated_at or ''
             if r.processing_unit not in unit_max or op > unit_max[r.processing_unit]:
                 unit_max[r.processing_unit] = op
-        records = sorted(records, key=lambda r: r.style_name)
+        records = sorted(records, key=lambda r: r.max_operated_at or '', reverse=True)
         records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
         records = query.order_by(HengjiRecord.id.desc()).all()
@@ -568,11 +568,11 @@ def taokou_index():
             op = r.max_operated_at or ''
             if r.processing_unit not in unit_max or op > unit_max[r.processing_unit]:
                 unit_max[r.processing_unit] = op
-        records = sorted(records, key=lambda r: r.style_name)
+        records = sorted(records, key=lambda r: r.max_operated_at or '', reverse=True)
         records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
         records = query.order_by(TaokouRecord.id.desc()).all()
-    
+
     total_pieces = sum(r.pieces for r in records)
     
     styles = TaokouStyle.query.order_by(TaokouStyle.name).all()
@@ -635,7 +635,7 @@ def taokou_table_partial():
             op = r.max_operated_at or ''
             if r.processing_unit not in unit_max or op > unit_max[r.processing_unit]:
                 unit_max[r.processing_unit] = op
-        records = sorted(records, key=lambda r: r.style_name)
+        records = sorted(records, key=lambda r: r.max_operated_at or '', reverse=True)
         records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
         records = query.order_by(TaokouRecord.id.desc()).all()
