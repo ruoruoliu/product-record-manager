@@ -346,9 +346,10 @@ def hengji_edit_style():
     style_id = request.form.get('id')
     name = request.form.get('name')
     unit_weight = request.form.get('unit_weight')
-    
+
     style = HengjiStyle.query.get(style_id)
     if style:
+        old_name = style.name
         style.name = name
         # Only update weight if provided
         if unit_weight is not None:
@@ -356,6 +357,14 @@ def hengji_edit_style():
                 style.unit_weight = float(unit_weight)
              except ValueError:
                 pass # keep original if invalid? or set to 0?
+        # Cascading rename in records
+        if old_name != name:
+            HengjiRecord.query.filter_by(style_name=old_name).update({'style_name': name})
+            TaokouRecord.query.filter_by(style_name=old_name).update({'style_name': name})
+            # Sync taokou style table too
+            tk_style = TaokouStyle.query.filter_by(name=old_name).first()
+            if tk_style:
+                tk_style.name = name
         db.session.commit()
         flash('款式修改成功', 'success')
     else:
@@ -389,10 +398,17 @@ def hengji_add_unit():
 def hengji_edit_unit():
     unit_id = request.form.get('id')
     name = request.form.get('name')
-    
+
     unit = HengjiProcessingUnit.query.get(unit_id)
     if unit:
+        old_name = unit.name
         unit.name = name
+        if old_name != name:
+            HengjiRecord.query.filter_by(processing_unit=old_name).update({'processing_unit': name})
+            TaokouRecord.query.filter_by(processing_unit=old_name).update({'processing_unit': name})
+            tk_unit = TaokouProcessingUnit.query.filter_by(name=old_name).first()
+            if tk_unit:
+                tk_unit.name = name
         db.session.commit()
         flash('加工单位修改成功', 'success')
     else:
@@ -727,10 +743,17 @@ def taokou_add_style():
 def taokou_edit_style():
     style_id = request.form.get('id')
     name = request.form.get('name')
-    
+
     style = TaokouStyle.query.get(style_id)
     if style:
+        old_name = style.name
         style.name = name
+        if old_name != name:
+            TaokouRecord.query.filter_by(style_name=old_name).update({'style_name': name})
+            HengjiRecord.query.filter_by(style_name=old_name).update({'style_name': name})
+            h_style = HengjiStyle.query.filter_by(name=old_name).first()
+            if h_style:
+                h_style.name = name
         db.session.commit()
         flash('款式修改成功', 'success')
     else:
@@ -764,10 +787,17 @@ def taokou_add_unit():
 def taokou_edit_unit():
     unit_id = request.form.get('id')
     name = request.form.get('name')
-    
+
     unit = TaokouProcessingUnit.query.get(unit_id)
     if unit:
+        old_name = unit.name
         unit.name = name
+        if old_name != name:
+            TaokouRecord.query.filter_by(processing_unit=old_name).update({'processing_unit': name})
+            HengjiRecord.query.filter_by(processing_unit=old_name).update({'processing_unit': name})
+            h_unit = HengjiProcessingUnit.query.filter_by(name=old_name).first()
+            if h_unit:
+                h_unit.name = name
         db.session.commit()
         flash('加工单位修改成功', 'success')
     else:
