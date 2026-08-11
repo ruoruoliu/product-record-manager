@@ -232,7 +232,7 @@
             <tbody>
                 {% for r in records %}
                 <tr class="align-middle">
-                    <td class="text-center">{% if show_aggregate %}—{% else %}{{ r.date }}{% endif %}</td>
+                    <td class="text-center">{% if not show_aggregate %}{{ r.date }}{% endif %}</td>
                     <td>{{ r.processing_unit or '-' }}</td>
                     <td>{{ r.style_name }}</td>
                     
@@ -383,6 +383,18 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="mb-3">
+                         <div class="d-flex gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="record_type" id="editTypeIssue" value="issue">
+                                <label class="form-check-label fw-bold text-success" for="editTypeIssue">发出</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="record_type" id="editTypeReceive" value="receive">
+                                <label class="form-check-label fw-bold text-danger" for="editTypeReceive">收回</label>
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">日期</label>
                          <!-- Use flatpickr for single date edit -->
