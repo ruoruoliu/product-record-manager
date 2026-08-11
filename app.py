@@ -167,11 +167,20 @@ def hengji_index():
             func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.pieces)), else_=0)).label('received_count'),
             func.sum(HengjiRecord.total_weight).label('total_weight'),
             func.sum(case((HengjiRecord.pieces > 0, HengjiRecord.total_weight), else_=0)).label('issued_weight'),
-            func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.total_weight)), else_=0)).label('received_weight')
+            func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.total_weight)), else_=0)).label('received_weight'),
+            func.max(HengjiRecord.operated_at).label('max_operated_at')
         ).group_by(
             HengjiRecord.processing_unit,
             HengjiRecord.style_name
-        ).order_by(func.max(HengjiRecord.operated_at).desc()).all()
+        ).all()
+        # Sort: same unit rows together; most recently modified unit at top
+        unit_max = {}
+        for r in records:
+            op = r.max_operated_at or ''
+            if r.processing_unit not in unit_max or op > unit_max[r.processing_unit]:
+                unit_max[r.processing_unit] = op
+        records = sorted(records, key=lambda r: r.style_name)
+        records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
         records = query.order_by(HengjiRecord.id.desc()).all()
     
@@ -227,11 +236,20 @@ def hengji_table_partial():
             func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.pieces)), else_=0)).label('received_count'),
             func.sum(HengjiRecord.total_weight).label('total_weight'),
             func.sum(case((HengjiRecord.pieces > 0, HengjiRecord.total_weight), else_=0)).label('issued_weight'),
-            func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.total_weight)), else_=0)).label('received_weight')
+            func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.total_weight)), else_=0)).label('received_weight'),
+            func.max(HengjiRecord.operated_at).label('max_operated_at')
         ).group_by(
             HengjiRecord.processing_unit,
             HengjiRecord.style_name
-        ).order_by(func.max(HengjiRecord.operated_at).desc()).all()
+        ).all()
+        # Sort: same unit rows together; most recently modified unit at top
+        unit_max = {}
+        for r in records:
+            op = r.max_operated_at or ''
+            if r.processing_unit not in unit_max or op > unit_max[r.processing_unit]:
+                unit_max[r.processing_unit] = op
+        records = sorted(records, key=lambda r: r.style_name)
+        records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
         records = query.order_by(HengjiRecord.id.desc()).all()
 
@@ -501,11 +519,20 @@ def taokou_index():
             TaokouRecord.style_name,
             func.sum(TaokouRecord.pieces).label('pieces'),
             func.sum(case((TaokouRecord.pieces > 0, TaokouRecord.pieces), else_=0)).label('issued_count'),
-            func.sum(case((TaokouRecord.pieces < 0, func.abs(TaokouRecord.pieces)), else_=0)).label('received_count')
+            func.sum(case((TaokouRecord.pieces < 0, func.abs(TaokouRecord.pieces)), else_=0)).label('received_count'),
+            func.max(TaokouRecord.operated_at).label('max_operated_at')
         ).group_by(
             TaokouRecord.processing_unit,
             TaokouRecord.style_name
-        ).order_by(func.max(TaokouRecord.operated_at).desc()).all()
+        ).all()
+        # Sort: same unit rows together; most recently modified unit at top
+        unit_max = {}
+        for r in records:
+            op = r.max_operated_at or ''
+            if r.processing_unit not in unit_max or op > unit_max[r.processing_unit]:
+                unit_max[r.processing_unit] = op
+        records = sorted(records, key=lambda r: r.style_name)
+        records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
         records = query.order_by(TaokouRecord.id.desc()).all()
     
@@ -559,11 +586,20 @@ def taokou_table_partial():
             TaokouRecord.style_name,
             func.sum(TaokouRecord.pieces).label('pieces'),
             func.sum(case((TaokouRecord.pieces > 0, TaokouRecord.pieces), else_=0)).label('issued_count'),
-            func.sum(case((TaokouRecord.pieces < 0, func.abs(TaokouRecord.pieces)), else_=0)).label('received_count')
+            func.sum(case((TaokouRecord.pieces < 0, func.abs(TaokouRecord.pieces)), else_=0)).label('received_count'),
+            func.max(TaokouRecord.operated_at).label('max_operated_at')
         ).group_by(
             TaokouRecord.processing_unit,
             TaokouRecord.style_name
-        ).order_by(func.max(TaokouRecord.operated_at).desc()).all()
+        ).all()
+        # Sort: same unit rows together; most recently modified unit at top
+        unit_max = {}
+        for r in records:
+            op = r.max_operated_at or ''
+            if r.processing_unit not in unit_max or op > unit_max[r.processing_unit]:
+                unit_max[r.processing_unit] = op
+        records = sorted(records, key=lambda r: r.style_name)
+        records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
         records = query.order_by(TaokouRecord.id.desc()).all()
 
