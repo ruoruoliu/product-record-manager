@@ -160,7 +160,6 @@ def hengji_index():
         
     if show_aggregate:
         records = query.with_entities(
-            HengjiRecord.date,
             HengjiRecord.processing_unit,
             HengjiRecord.style_name,
             func.sum(HengjiRecord.pieces).label('pieces'),
@@ -170,10 +169,9 @@ def hengji_index():
             func.sum(case((HengjiRecord.pieces > 0, HengjiRecord.total_weight), else_=0)).label('issued_weight'),
             func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.total_weight)), else_=0)).label('received_weight')
         ).group_by(
-            HengjiRecord.date,
             HengjiRecord.processing_unit,
             HengjiRecord.style_name
-        ).order_by(HengjiRecord.date.desc()).all()
+        ).order_by(HengjiRecord.processing_unit).all()
     else:
         records = query.order_by(HengjiRecord.id.desc()).all()
     
@@ -222,7 +220,6 @@ def hengji_table_partial():
 
     if show_aggregate:
         records = query.with_entities(
-            HengjiRecord.date,
             HengjiRecord.processing_unit,
             HengjiRecord.style_name,
             func.sum(HengjiRecord.pieces).label('pieces'),
@@ -232,10 +229,9 @@ def hengji_table_partial():
             func.sum(case((HengjiRecord.pieces > 0, HengjiRecord.total_weight), else_=0)).label('issued_weight'),
             func.sum(case((HengjiRecord.pieces < 0, func.abs(HengjiRecord.total_weight)), else_=0)).label('received_weight')
         ).group_by(
-            HengjiRecord.date,
             HengjiRecord.processing_unit,
             HengjiRecord.style_name
-        ).order_by(HengjiRecord.date.desc()).all()
+        ).order_by(HengjiRecord.processing_unit).all()
     else:
         records = query.order_by(HengjiRecord.id.desc()).all()
 
@@ -501,17 +497,15 @@ def taokou_index():
     
     if show_aggregate:
         records = query.with_entities(
-            TaokouRecord.date,
             TaokouRecord.processing_unit,
             TaokouRecord.style_name,
             func.sum(TaokouRecord.pieces).label('pieces'),
             func.sum(case((TaokouRecord.pieces > 0, TaokouRecord.pieces), else_=0)).label('issued_count'),
             func.sum(case((TaokouRecord.pieces < 0, func.abs(TaokouRecord.pieces)), else_=0)).label('received_count')
         ).group_by(
-            TaokouRecord.date,
             TaokouRecord.processing_unit,
             TaokouRecord.style_name
-        ).order_by(TaokouRecord.date.desc()).all()
+        ).order_by(TaokouRecord.processing_unit).all()
     else:
         records = query.order_by(TaokouRecord.id.desc()).all()
     
@@ -561,17 +555,15 @@ def taokou_table_partial():
 
     if show_aggregate:
         records = query.with_entities(
-            TaokouRecord.date,
             TaokouRecord.processing_unit,
             TaokouRecord.style_name,
             func.sum(TaokouRecord.pieces).label('pieces'),
             func.sum(case((TaokouRecord.pieces > 0, TaokouRecord.pieces), else_=0)).label('issued_count'),
             func.sum(case((TaokouRecord.pieces < 0, func.abs(TaokouRecord.pieces)), else_=0)).label('received_count')
         ).group_by(
-            TaokouRecord.date,
             TaokouRecord.processing_unit,
             TaokouRecord.style_name
-        ).order_by(TaokouRecord.date.desc()).all()
+        ).order_by(TaokouRecord.processing_unit).all()
     else:
         records = query.order_by(TaokouRecord.id.desc()).all()
 

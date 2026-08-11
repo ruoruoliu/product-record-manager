@@ -232,7 +232,7 @@
             <tbody>
                 {% for r in records %}
                 <tr class="align-middle">
-                    <td class="text-center">{{ r.date }}</td>
+                    <td class="text-center">{% if show_aggregate %}—{% else %}{{ r.date }}{% endif %}</td>
                     <td>{{ r.processing_unit or '-' }}</td>
                     <td>{{ r.style_name }}</td>
                     
