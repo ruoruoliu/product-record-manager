@@ -121,7 +121,10 @@
                 </div>
             </div>
             
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <input type="text" name="date" id="addRecordDate" class="form-control" placeholder="选择日期" required>
+            </div>
+            <div class="col-md-2">
                 <select name="style_name" class="form-select" required>
                     <option value="" disabled selected>选择款式</option>
                     {% for s in styles %}
@@ -129,7 +132,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <select name="processing_unit" class="form-select" required>
                     <option value="" disabled selected>选择单位</option>
                     {% for u in units %}
@@ -324,24 +327,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                         <div class="d-flex gap-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="record_type" id="editTypeIssue" value="issue">
-                                <label class="form-check-label fw-bold text-success" for="editTypeIssue">
-                                    发出
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="record_type" id="editTypeReceive" value="receive">
-                                <label class="form-check-label fw-bold text-danger" for="editTypeReceive">
-                                    收回
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">日期</label>
-                        <input type="text" name="date" id="edit_record_date" class="form-control" required>
+                        <label class="form-label">款式名称</label>
+                        <input type="text" name="name" id="edit_style_name" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -591,6 +578,14 @@
         var unitFilter = document.getElementById('unit_filter');
         if (styleFilter) styleFilter.addEventListener('change', loadTable);
         if (unitFilter) unitFilter.addEventListener('change', loadTable);
+
+        // Initialize add record date picker
+        flatpickr("#addRecordDate", {
+            dateFormat: "Y-m-d",
+            defaultDate: "today",
+            allowInput: true,
+            locale: "zh"
+        });
 
         var addRecordBtn = document.getElementById('addRecordBtn');
         var radioIssue = document.getElementById('addTypeIssue');

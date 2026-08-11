@@ -34,7 +34,9 @@ class HengjiRecord(db.Model):
     style_name = db.Column(db.String(50))
     processing_unit = db.Column(db.String(50))
     pieces = db.Column(db.Integer)
-    total_weight = db.Column(db.Float) # compute by unit_weight * pieces 
+    total_weight = db.Column(db.Float) # compute by unit_weight * pieces
+    operated_at = db.Column(db.String(20))
+    is_active = db.Column(db.Boolean, default=True)
 
 # define taokou record table
 class TaokouRecord(db.Model):
@@ -43,6 +45,8 @@ class TaokouRecord(db.Model):
     style_name = db.Column(db.String(50))
     processing_unit = db.Column(db.String(50))
     pieces = db.Column(db.Integer)
+    operated_at = db.Column(db.String(20))
+    is_active = db.Column(db.Boolean, default=True)
 
 # define taokou style table
 class TaokouStyle(db.Model):
@@ -57,7 +61,19 @@ class TaokouProcessingUnit(db.Model):
 # init database and migrations
 with app.app_context():
     db.create_all()
-    
+
+    # Migration: add is_active and operated_at columns if missing
+    for table_name in ['hengji_record', 'taokou_record']:
+        cols = [c['name'] for c in inspect(db.engine).get_columns(table_name)]
+        if 'is_active' not in cols:
+            if 'postgresql' in str(db.engine.url):
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN is_active BOOLEAN DEFAULT TRUE'))
+            else:
+                db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN is_active INTEGER DEFAULT 1'))
+        if 'operated_at' not in cols:
+            db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN operated_at VARCHAR(20)'))
+    db.session.commit()
+
     # Init default styles if empty
     if not HengjiStyle.query.first():
         db.session.add_all([
@@ -117,15 +133,15 @@ def hengji_index():
     # But usually args will not be used in this "Flash Session" pattern unless we explicitly redirect with them.
     # We will rely on session populated by Add/Edit/Delete actions before they redirect.
         
-    query = HengjiRecord.query
-    
+    query = HengjiRecord.query.filter(HengjiRecord.is_active == True)
+
     # Apply filters (Multi-select support)
     if unit_filters and '' not in unit_filters:
         query = query.filter(HengjiRecord.processing_unit.in_(unit_filters))
-        
+
     if style_filters and '' not in style_filters:
         query = query.filter(HengjiRecord.style_name.in_(style_filters))
-    
+
     # Date Range logic
     if date_range:
         if " 至 " in date_range:
@@ -189,7 +205,7 @@ def hengji_table_partial():
     style_filters = request.args.getlist('style_filter')
     show_aggregate = request.args.get('show_aggregate') == 'true'
 
-    query = HengjiRecord.query
+    query = HengjiRecord.query.filter(HengjiRecord.is_active == True)
 
     if unit_filters and '' not in unit_filters:
         query = query.filter(HengjiRecord.processing_unit.in_(unit_filters))
@@ -263,8 +279,12 @@ def hengji_add():
         
     total_weight = pieces * style.unit_weight
 
+    date_str = request.form.get('date', datetime.now().strftime('%Y-%m-%d'))
+    now_str = datetime.now().strftime('%Y-%m-%d')
     new_rec = HengjiRecord(
-        date = datetime.now().strftime('%Y-%m-%d'),
+        date = date_str,
+        operated_at = now_str,
+        is_active = True,
         style_name = style_name,
         processing_unit = processing_unit,
         pieces = pieces,
@@ -386,7 +406,8 @@ def hengji_delete_record(id):
 
     record = HengjiRecord.query.get(id)
     if record:
-        db.session.delete(record)
+        record.is_active = False
+        record.operated_at = datetime.now().strftime('%Y-%m-%d')
         db.session.commit()
         flash('记录删除成功', 'success')
     else:
@@ -430,7 +451,8 @@ def hengji_edit_record():
         record.processing_unit = processing_unit
         record.pieces = pieces
         record.total_weight = round(pieces * style.unit_weight, 4)
-        
+        record.operated_at = datetime.now().strftime('%Y-%m-%d')
+
         db.session.commit()
         flash('记录修改成功', 'success')
     else:
@@ -457,14 +479,14 @@ def taokou_index():
     style_filters = session.pop('taokou_style_filter', [])
     show_aggregate = session.pop('taokou_show_aggregate', False)
     
-    query = TaokouRecord.query
-    
+    query = TaokouRecord.query.filter(TaokouRecord.is_active == True)
+
     if unit_filters and '' not in unit_filters:
          query = query.filter(TaokouRecord.processing_unit.in_(unit_filters))
-        
+
     if style_filters and '' not in style_filters:
          query = query.filter(TaokouRecord.style_name.in_(style_filters))
-    
+
     if date_range:
         if " to " in date_range:
             start_date, end_date = date_range.split(" to ")
@@ -518,7 +540,7 @@ def taokou_table_partial():
     style_filters = request.args.getlist('style_filter')
     show_aggregate = request.args.get('show_aggregate') == 'true'
 
-    query = TaokouRecord.query
+    query = TaokouRecord.query.filter(TaokouRecord.is_active == True)
 
     if unit_filters and '' not in unit_filters:
          query = query.filter(TaokouRecord.processing_unit.in_(unit_filters))
@@ -590,8 +612,12 @@ def taokou_add():
         flash('款式不存在', 'danger')
         return redirect(url_for('taokou_index'))
 
+    date_str = request.form.get('date', datetime.now().strftime('%Y-%m-%d'))
+    now_str = datetime.now().strftime('%Y-%m-%d')
     new_rec = TaokouRecord(
-        date = datetime.now().strftime('%Y-%m-%d'),
+        date = date_str,
+        operated_at = now_str,
+        is_active = True,
         style_name = style_name,
         processing_unit = processing_unit,
         pieces = pieces
@@ -610,7 +636,8 @@ def taokou_delete_record(id):
 
     record = TaokouRecord.query.get(id)
     if record:
-        db.session.delete(record)
+        record.is_active = False
+        record.operated_at = datetime.now().strftime('%Y-%m-%d')
         db.session.commit()
         flash('记录删除成功', 'success')
     else:
@@ -647,6 +674,7 @@ def taokou_edit_record():
         record.style_name = style_name
         record.processing_unit = processing_unit
         record.pieces = pieces
+        record.operated_at = datetime.now().strftime('%Y-%m-%d')
         db.session.commit()
         flash('记录修改成功', 'success')
     else:
