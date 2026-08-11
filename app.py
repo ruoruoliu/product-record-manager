@@ -444,6 +444,36 @@ def hengji_delete_record(id):
         flash('记录不存在', 'danger')
     return redirect(url_for('hengji_index'))
 
+@app.route('/hengji/batch_delete', methods=['POST'])
+def hengji_batch_delete():
+    session['date_range'] = request.form.get('date_range', '')
+    session['style_filter'] = request.form.getlist('style_filter')
+    session['unit_filter'] = request.form.getlist('unit_filter')
+    session['show_aggregate'] = request.form.get('show_aggregate') == 'True'
+
+    date_range = request.form.get('date_range', '')
+    unit_filters = request.form.getlist('unit_filter')
+    style_filters = request.form.getlist('style_filter')
+
+    query = HengjiRecord.query.filter(HengjiRecord.is_active == True)
+    if unit_filters and '' not in unit_filters:
+        query = query.filter(HengjiRecord.processing_unit.in_(unit_filters))
+    if style_filters and '' not in style_filters:
+        query = query.filter(HengjiRecord.style_name.in_(style_filters))
+    if date_range:
+        if " 至 " in date_range:
+            start_date, end_date = date_range.split(" 至 ")
+            query = query.filter(HengjiRecord.date >= start_date)
+            query = query.filter(HengjiRecord.date <= end_date)
+        else:
+            query = query.filter(HengjiRecord.date == date_range)
+
+    now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    count = query.update({'is_active': False, 'operated_at': now_str}, synchronize_session=False)
+    db.session.commit()
+    flash(f'批量删除成功，共删除 {count} 条记录', 'success')
+    return redirect(url_for('hengji_index'))
+
 @app.route('/hengji/record/edit', methods=['POST'])
 def hengji_edit_record():
     # Retrieve filters
@@ -686,6 +716,40 @@ def taokou_delete_record(id):
         flash('记录删除成功', 'success')
     else:
         flash('记录不存在', 'danger')
+    return redirect(url_for('taokou_index'))
+
+@app.route('/taokou/batch_delete', methods=['POST'])
+def taokou_batch_delete():
+    session['taokou_date_range'] = request.form.get('date_range', '')
+    session['taokou_style_filter'] = request.form.getlist('style_filter')
+    session['taokou_unit_filter'] = request.form.getlist('unit_filter')
+    session['taokou_show_aggregate'] = request.form.get('show_aggregate') == 'True'
+
+    date_range = request.form.get('date_range', '')
+    unit_filters = request.form.getlist('unit_filter')
+    style_filters = request.form.getlist('style_filter')
+
+    query = TaokouRecord.query.filter(TaokouRecord.is_active == True)
+    if unit_filters and '' not in unit_filters:
+        query = query.filter(TaokouRecord.processing_unit.in_(unit_filters))
+    if style_filters and '' not in style_filters:
+        query = query.filter(TaokouRecord.style_name.in_(style_filters))
+    if date_range:
+        if " to " in date_range:
+            start_date, end_date = date_range.split(" to ")
+            query = query.filter(TaokouRecord.date >= start_date)
+            query = query.filter(TaokouRecord.date <= end_date)
+        elif " 至 " in date_range:
+            start_date, end_date = date_range.split(" 至 ")
+            query = query.filter(TaokouRecord.date >= start_date)
+            query = query.filter(TaokouRecord.date <= end_date)
+        else:
+            query = query.filter(TaokouRecord.date == date_range)
+
+    now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    count = query.update({'is_active': False, 'operated_at': now_str}, synchronize_session=False)
+    db.session.commit()
+    flash(f'批量删除成功，共删除 {count} 条记录', 'success')
     return redirect(url_for('taokou_index'))
 
 @app.route('/taokou/edit_record', methods=['POST'])

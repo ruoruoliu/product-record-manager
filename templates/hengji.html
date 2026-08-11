@@ -171,7 +171,7 @@
     </div>
     <div class="card-body border-bottom bg-light">
         <form action="{{ url_for('hengji_index') }}" method="POST" class="row g-3 align-items-end" id="filterForm">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <label class="form-label small text-muted mb-1">日期范围</label>
                     <div class="mb-1">
@@ -195,7 +195,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small text-muted mb-1">加工单位</label>
                 <select name="unit_filter" id="unit_filter" class="form-select">
                     <option value="">全部</option>
@@ -204,14 +204,17 @@
                     {% endfor %}
                 </select>
             </div>
-             <div class="col-md-2 d-flex gap-2 align-items-end">
-                <div class="d-grid w-50">
-                    <a href="{{ url_for('hengji_index') }}" class="btn btn-outline-secondary">重置</a>
-                </div>
-                <div class="d-grid w-50">
+             <div class="col-md-3 d-flex gap-2 align-items-end">
+                <div class="d-grid" style="flex: 1;">
                     <button type="button" id="toggleAggregateBtn" onclick="toggleAggregate()" class="btn btn-{{ 'primary' if show_aggregate else 'outline-primary' }}">
                         {{ '明细' if show_aggregate else '聚合' }}
                     </button>
+                </div>
+                <div class="d-grid" style="flex: 1;">
+                    <a href="{{ url_for('hengji_index') }}" class="btn btn-outline-secondary">重置</a>
+                </div>
+                <div class="d-grid" style="flex: 1;">
+                    <button type="button" class="btn btn-outline-danger" onclick="batchDelete()">批量删除</button>
                 </div>
             </div>
         </form>
@@ -552,6 +555,26 @@
     function openAddUnit() {
         var modal = getModal('addUnitModal');
         if (modal) modal.show();
+    }
+
+    function batchDelete() {
+        if (!confirm('是否确认批量删除？')) return;
+        var form = document.getElementById('filterForm');
+        var fd = new FormData(form);
+        fd.set('show_aggregate', showAggregate ? 'True' : 'False');
+        var tempForm = document.createElement('form');
+        tempForm.method = 'POST';
+        tempForm.action = '/hengji/batch_delete';
+        tempForm.style.display = 'none';
+        for (var pair of fd.entries()) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = pair[0];
+            input.value = pair[1];
+            tempForm.appendChild(input);
+        }
+        document.body.appendChild(tempForm);
+        tempForm.submit();
     }
 
     function openEditStyle(id, name, weight) {
