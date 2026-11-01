@@ -1,4 +1,5 @@
-<div class="table-responsive" id="recordsTable">
+<div id="recordsTable">
+    <div class="table-responsive">
     <table class="table table-hover mb-0">
         <thead class="table-light">
             <tr>
@@ -86,4 +87,14 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
+    {% if not show_aggregate and total_pages > 1 %}
+    <nav class="d-flex justify-content-between align-items-center px-2 py-2 border-top bg-white" aria-label="分页">
+        <span class="text-muted small">共 {{ total_count }} 条记录，第 {{ page }} / {{ total_pages }} 页</span>
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="goToPage({{ page - 1 }})" {% if page <= 1 %}disabled{% endif %}>上一页</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="goToPage({{ page + 1 }})" {% if page >= total_pages %}disabled{% endif %}>下一页</button>
+        </div>
+    </nav>
+    {% endif %}
 </div>

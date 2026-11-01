@@ -16,6 +16,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'dev_secret_key_change_this_production_random_string'
 db = SQLAlchemy(app)
 
+PER_PAGE = 100
+
+def paginate_detail(query, order_by, page):
+    total_count = query.count()
+    total_pages = max(1, (total_count + PER_PAGE - 1) // PER_PAGE)
+    page = max(1, min(page, total_pages))
+    records = query.order_by(order_by).offset((page - 1) * PER_PAGE).limit(PER_PAGE).all()
+    return records, page, total_pages, total_count
+
 # define hengji style table
 class HengjiStyle(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -163,7 +172,11 @@ def hengji_index():
     else:
         # Default behavior: show all
         pass
-        
+
+    page = 1
+    total_pages = 1
+    total_count = 0
+
     if show_aggregate:
         records = query.with_entities(
             HengjiRecord.processing_unit,
@@ -188,7 +201,7 @@ def hengji_index():
         records = sorted(records, key=lambda r: r.max_operated_at or '', reverse=True)
         records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
-        records = query.order_by(HengjiRecord.id.desc()).all()
+        records, page, total_pages, total_count = paginate_detail(query, HengjiRecord.id.desc(), 1)
 
     # Calculate summary
     total_weight = sum(r.total_weight for r in records)
@@ -204,6 +217,9 @@ def hengji_index():
         total_weight=round(total_weight, 3), 
         total_pieces=total_pieces,
         show_aggregate=show_aggregate,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count,
         current_filters={
             'date_range': date_range,
             'unit': unit_filters,
@@ -217,6 +233,7 @@ def hengji_table_partial():
     unit_filters = request.args.getlist('unit_filter')
     style_filters = request.args.getlist('style_filter')
     show_aggregate = request.args.get('show_aggregate') == 'true'
+    page = request.args.get('page', 1, type=int)
 
     query = HengjiRecord.query.filter(HengjiRecord.is_active == True)
 
@@ -233,6 +250,9 @@ def hengji_table_partial():
         else:
             query = query.filter(HengjiRecord.date == date_range)
 
+    total_pages = 1
+    total_count = 0
+
     if show_aggregate:
         records = query.with_entities(
             HengjiRecord.processing_unit,
@@ -257,11 +277,14 @@ def hengji_table_partial():
         records = sorted(records, key=lambda r: r.max_operated_at or '', reverse=True)
         records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
-        records = query.order_by(HengjiRecord.id.desc()).all()
+        records, page, total_pages, total_count = paginate_detail(query, HengjiRecord.id.desc(), page)
 
     return render_template('_hengji_table.html',
         records=records,
         show_aggregate=show_aggregate,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count,
         current_filters={
             'date_range': date_range,
             'unit': unit_filters,
@@ -539,6 +562,10 @@ def taokou_index():
     unit_filters = session.pop('taokou_unit_filter', [])
     style_filters = session.pop('taokou_style_filter', [])
     show_aggregate = session.pop('taokou_show_aggregate', False)
+
+    page = 1
+    total_pages = 1
+    total_count = 0
     
     query = TaokouRecord.query.filter(TaokouRecord.is_active == True)
 
@@ -581,7 +608,7 @@ def taokou_index():
         records = sorted(records, key=lambda r: r.max_operated_at or '', reverse=True)
         records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
-        records = query.order_by(TaokouRecord.id.desc()).all()
+        records, page, total_pages, total_count = paginate_detail(query, TaokouRecord.id.desc(), 1)
 
     total_pieces = sum(r.pieces for r in records)
     
@@ -594,6 +621,9 @@ def taokou_index():
         records=records, 
         total_pieces=total_pieces,
         show_aggregate=show_aggregate,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count,
         current_filters={
             'date_range': date_range,
             'unit': unit_filters,
@@ -607,6 +637,9 @@ def taokou_table_partial():
     unit_filters = request.args.getlist('unit_filter')
     style_filters = request.args.getlist('style_filter')
     show_aggregate = request.args.get('show_aggregate') == 'true'
+    page = request.args.get('page', 1, type=int)
+    total_pages = 1
+    total_count = 0
 
     query = TaokouRecord.query.filter(TaokouRecord.is_active == True)
 
@@ -648,11 +681,14 @@ def taokou_table_partial():
         records = sorted(records, key=lambda r: r.max_operated_at or '', reverse=True)
         records = sorted(records, key=lambda r: unit_max.get(r.processing_unit, ''), reverse=True)
     else:
-        records = query.order_by(TaokouRecord.id.desc()).all()
+        records, page, total_pages, total_count = paginate_detail(query, TaokouRecord.id.desc(), page)
 
     return render_template('_taokou_table.html',
         records=records,
         show_aggregate=show_aggregate,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count,
         current_filters={
             'date_range': date_range,
             'unit': unit_filters,
