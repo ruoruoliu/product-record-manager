@@ -76,12 +76,21 @@
     </table>
     </div>
     {% if not show_aggregate and total_pages > 1 %}
-    <nav class="d-flex justify-content-between align-items-center px-2 py-2 border-top bg-white" aria-label="分页">
+    <nav class="d-flex flex-wrap justify-content-between align-items-center px-2 py-2 border-top bg-white gap-2" aria-label="分页">
         <span class="text-muted small">共 {{ total_count }} 条记录，第 {{ page }} / {{ total_pages }} 页</span>
-        <div class="btn-group">
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="goToPage({{ page - 1 }})" {% if page <= 1 %}disabled{% endif %}>上一页</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="goToPage({{ page + 1 }})" {% if page >= total_pages %}disabled{% endif %}>下一页</button>
-        </div>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <button type="button" class="page-link" onclick="goToPage({{ page - 1 }})">上一页</button>
+            </li>
+            {% for p in range(1, total_pages + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <button type="button" class="page-link" onclick="goToPage({{ p }})">{{ p }}</button>
+            </li>
+            {% endfor %}
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <button type="button" class="page-link" onclick="goToPage({{ page + 1 }})">下一页</button>
+            </li>
+        </ul>
     </nav>
     {% endif %}
 </div>
