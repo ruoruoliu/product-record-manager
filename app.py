@@ -36,6 +36,7 @@ class HengjiRecord(db.Model):
     pieces = db.Column(db.Integer)
     total_weight = db.Column(db.Float) # compute by unit_weight * pieces
     operated_at = db.Column(db.String(20))
+    created_at = db.Column(db.String(20))
     is_active = db.Column(db.Boolean, default=True)
 
 # define taokou record table
@@ -46,6 +47,7 @@ class TaokouRecord(db.Model):
     processing_unit = db.Column(db.String(50))
     pieces = db.Column(db.Integer)
     operated_at = db.Column(db.String(20))
+    created_at = db.Column(db.String(20))
     is_active = db.Column(db.Boolean, default=True)
 
 # define taokou style table
@@ -62,7 +64,7 @@ class TaokouProcessingUnit(db.Model):
 with app.app_context():
     db.create_all()
 
-    # Migration: add is_active and operated_at columns if missing
+    # Migration: add is_active, operated_at, created_at columns if missing
     for table_name in ['hengji_record', 'taokou_record']:
         cols = [c['name'] for c in inspect(db.engine).get_columns(table_name)]
         if 'is_active' not in cols:
@@ -72,6 +74,10 @@ with app.app_context():
                 db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN is_active INTEGER DEFAULT 1'))
         if 'operated_at' not in cols:
             db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN operated_at VARCHAR(20)'))
+        if 'created_at' not in cols:
+            db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN created_at VARCHAR(20)'))
+        # One-time backfill: copy operated_at into created_at (idempotent)
+        db.session.execute(text(f'UPDATE {table_name} SET created_at = operated_at WHERE created_at IS NULL AND operated_at IS NOT NULL'))
     db.session.commit()
 
     # Init default styles if empty
@@ -298,6 +304,7 @@ def hengji_add():
     new_rec = HengjiRecord(
         date = date_str,
         operated_at = now_str,
+        created_at = now_str,
         is_active = True,
         style_name = style_name,
         processing_unit = processing_unit,
@@ -682,6 +689,7 @@ def taokou_add():
     new_rec = TaokouRecord(
         date = date_str,
         operated_at = now_str,
+        created_at = now_str,
         is_active = True,
         style_name = style_name,
         processing_unit = processing_unit,
