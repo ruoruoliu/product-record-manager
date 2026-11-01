@@ -558,23 +558,25 @@
     }
 
     function batchDelete() {
-        if (!confirm('是否确认批量删除？')) return;
-        var form = document.getElementById('filterForm');
-        var fd = new FormData(form);
-        fd.set('show_aggregate', showAggregate ? 'True' : 'False');
-        var tempForm = document.createElement('form');
-        tempForm.method = 'POST';
-        tempForm.action = '/hengji/batch_delete';
-        tempForm.style.display = 'none';
-        for (var pair of fd.entries()) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = pair[0];
-            input.value = pair[1];
-            tempForm.appendChild(input);
-        }
-        document.body.appendChild(tempForm);
-        tempForm.submit();
+        confirm('此功能暂不支持');
+        // === 批量删除功能暂不支持，原逻辑保留备用 ===
+        // if (!confirm('是否确认批量删除？')) return;
+        // var form = document.getElementById('filterForm');
+        // var fd = new FormData(form);
+        // fd.set('show_aggregate', showAggregate ? 'True' : 'False');
+        // var tempForm = document.createElement('form');
+        // tempForm.method = 'POST';
+        // tempForm.action = '/hengji/batch_delete';
+        // tempForm.style.display = 'none';
+        // for (var pair of fd.entries()) {
+        //     var input = document.createElement('input');
+        //     input.type = 'hidden';
+        //     input.name = pair[0];
+        //     input.value = pair[1];
+        //     tempForm.appendChild(input);
+        // }
+        // document.body.appendChild(tempForm);
+        // tempForm.submit();
     }
 
     function openEditStyle(id, name, weight) {
