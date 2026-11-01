@@ -391,7 +391,7 @@
     var showAggregate = {{ 'true' if show_aggregate else 'false' }};
     var currentPage = 1;
 
-    function loadTable(page, keepScroll) {
+    function loadTable(page, goBottom) {
         if (page === undefined) {
             currentPage = 1;
         } else {
@@ -409,21 +409,14 @@
             params.set('page', currentPage);
         }
 
-        var navTopBefore = null;
-        if (keepScroll) {
-            var nav = document.querySelector('#recordsTable nav');
-            if (nav) navTopBefore = nav.getBoundingClientRect().top;
-        }
-
         fetch('/taokou/table?' + params.toString())
             .then(function(r) { return r.text(); })
             .then(function(html) {
                 document.getElementById('recordsTable').outerHTML = html;
-                if (navTopBefore !== null) {
+                if (goBottom) {
                     var newNav = document.querySelector('#recordsTable nav');
                     if (newNav) {
-                        var navTopAfter = newNav.getBoundingClientRect().top;
-                        window.scrollBy(0, navTopAfter - navTopBefore);
+                        newNav.scrollIntoView({ block: 'end', behavior: 'instant' });
                     }
                 }
             });
